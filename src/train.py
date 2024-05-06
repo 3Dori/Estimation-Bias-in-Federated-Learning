@@ -9,8 +9,8 @@ from model import Net
 
 
 class Trainer:
-    def __init__(self, batch_size=64, test_batch_size=1000,
-                 learning_rate=0.01, epochs=50, logging_interval=10):
+    def __init__(self, batch_size=64, test_batch_size=1000, data_path='../data',
+                 learning_rate=0.01, epochs=30, logging_interval=50):
         self.epochs = epochs
         self.logging_interval = logging_interval
         self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
@@ -21,9 +21,9 @@ class Trainer:
             transforms.ToTensor(),
             transforms.Normalize((0.1307,), (0.3081,))
         ])
-        train_dataset = datasets.MNIST('../data', train=True, download=True,
+        train_dataset = datasets.MNIST(data_path, train=True, download=True,
                                        transform=transform)
-        test_dataset = datasets.MNIST('../data', train=False, transform=transform)
+        test_dataset = datasets.MNIST(data_path, train=False, transform=transform)
         self.train_loader = torch.utils.data.DataLoader(train_dataset, **train_kwargs)
         self.test_loader = torch.utils.data.DataLoader(test_dataset, **test_kwargs)
 
