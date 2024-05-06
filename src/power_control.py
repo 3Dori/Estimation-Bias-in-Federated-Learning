@@ -1,6 +1,7 @@
-from typing import Tuple
+from math import sqrt
 
 import torch
+import torch.linalg
 from matplotlib import pyplot as plt
 
 
@@ -10,28 +11,29 @@ class PowerControl:
     'Optimized Power Control for Over-the-Air Computation in Fading Channels'
     by Xiaowen Gao et al.
     """
-    def __init__(self, k: int, p_max: float, sigma: float, device) -> None:
+    def __init__(self, k: int, p_max: float, sigma: float, device, plot: bool = False) -> None:
         self.device = device
 
         self.k = k
         self.h = self._generate_h(k)
-        self.h_norm = torch.linagl.vector_norm(self.h, axis=1)
-        self.p_max = torch.full(k, p_max, device=device)
+        self.h_norm = torch.linalg.vector_norm(self.h, axis=1)
+        self.p_max = torch.full((k,), p_max, device=device)
         self.sigma = sigma
 
-        self.p_star, self.eta_star = self.compute_optimal_p_and_eta()
+        self.p_star, self.eta_star = self.compute_optimal_p_and_eta(plot=plot)
         self.b = self.h_norm * torch.sqrt(self.p_star) / torch.sqrt(self.eta_star)
         self.k_sqrt_eta_star = self.k * torch.sqrt(self.eta_star)
 
     def _generate_h(self, k):
-        return torch.normal(0, torch.sqrt(2)/2, size=(k, 2), device=self.device).view(torch.complex128)
+        return torch.normal(0, sqrt(2)/2, size=(k, 2), device=self.device).view(torch.complex64)
     
     def _generate_z(self, shape):
         return torch.normal(0, self.sigma, size=shape, device=self.device)
     
     def receive(self, w):
         assert w.shape[0] == self.k
-        x = torch.sum(self.b[:,] * w, axis=0)
+        # x = torch.sum(self.b[:,] * w, axis=0)
+        x = torch.matmul(self.b, w)
         z = self._generate_z(shape=x.shape)
         return (x + z) / self.k_sqrt_eta_star
 
@@ -48,10 +50,10 @@ class PowerControl:
         h_squared = (self.h_norm ** 2)[sorted_index]
         p_h_sqaured = p_max * h_squared
 
-        sum_1_to_i_pi_hi_squared = torch.cumsum(p_h_sqaured)
-        sum_1_to_i_sqrt_pi_hi = torch.cumsum(torch.sqrt(p_h_sqaured))
+        sum_1_to_i_pi_hi_squared = torch.cumsum(p_h_sqaured, dim=0)
+        sum_1_to_i_sqrt_pi_hi = torch.cumsum(torch.sqrt(p_h_sqaured), dim=0)
         eta_tilde = ((self.sigma ** 2 + sum_1_to_i_pi_hi_squared) / sum_1_to_i_sqrt_pi_hi) ** 2
-        k_star = torch.argmax(eta_tilde < p_h_sqaured)
+        k_star = torch.argmax((eta_tilde < p_h_sqaured) * 1.0)
         eta_star = eta_tilde[k_star]
         p_star = torch.where(eta_tilde >= p_h_sqaured, p_max, eta_star / h_squared)
 

@@ -15,6 +15,7 @@ class FederatedLearningDataset(torch.utils.data.Dataset):
     """
     Generate K datasets from the original dataset for federated learning.
     """
+    # TODO: non-iid, iid distribution
     def __init__(self, original_dataset: torch.utils.data.Dataset, K: int, k: int):
         self.original_dataset = original_dataset
         self.K = K
@@ -23,7 +24,7 @@ class FederatedLearningDataset(torch.utils.data.Dataset):
         self.k = k
 
     def __len__(self):
-        return len(self.original_dataset) // self.K
+        return len(self.original_dataset) // self.K // 10
 
     def __getitem__(self, idx):
         transformed_idx = len(self) * self.k + idx
@@ -36,7 +37,7 @@ class Trainer:
         transforms.Normalize((0.1307,), (0.3081,))
     ])
 
-    def __init__(self, K=10, E=1, n_global_rounds=30,
+    def __init__(self, K: int = 10, E: int = 1, n_global_rounds: int = 30,
                  batch_size=None, test_batch_size=1000, data_path='../data',
                  learning_rate=0.01):
         self.K = K
@@ -55,16 +56,16 @@ class Trainer:
 
         self._num_parameters = sum(param.numel() for param in self.global_model.parameters())
 
-        self.power_control = PowerControl(K, p_max=1.0, sigma=1.0)
+        self.power_control = PowerControl(K, p_max=1.0, sigma=1.0, device=self.device)
     
     def train(self):
         for global_round in range(self.n_global_rounds):
-            self._broadcast_weights()
+            self._broadcast_weight()
             self._local_train()
             self._global_update()
             self._test()
-            logging.info(f'Global round: {global_round}/{self.n_global_rounds} '
-                         f'({global_round / self.n_global_rounds:.0f}%)')
+            logging.info(f'Global round: {global_round+1}/{self.n_global_rounds} '
+                         f'({100. * (global_round+1) / self.n_global_rounds:.0f}%)')
 
     def _local_train(self):
         for k in range(self.K):
@@ -72,7 +73,7 @@ class Trainer:
                 self._train(k)
 
     def _combine_local_weights(self):
-        w = np.zeros((self.K, self._num_parameters), dtype=np.float32)
+        w = torch.empty((self.K, self._num_parameters))
         with torch.no_grad():
             for k in range(self.K):
                 model = self.models[k]
@@ -82,18 +83,31 @@ class Trainer:
                     start_idx += param.numel()
                 assert start_idx == self._num_parameters
         return w
+    
+    def _mean_local_weights(self):
+        w = torch.empty((self._num_parameters,))
+        with torch.no_grad():
+            for k in range(self.K):
+                model = self.models[k]
+                start_idx = 0
+                for param in model.parameters():
+                    w[start_idx:start_idx + param.numel()] += torch.flatten(param)
+                    start_idx += param.numel()
+        w /= self.K
+        return w
 
     def _global_update(self):
-        w = self._combine_local_weights()
-        global_w = self.power_control.receive(w)
+        # w = self._combine_local_weights()
+        # global_w = self.power_control.receive(w)        
+        global_w = self._mean_local_weights()  # TODO: what if we use simple arithmetic mean?
         start_idx = 0
         with torch.no_grad():
             for param in self.global_model.parameters():
-                param.copy_(global_w[start_idx:start_idx + param.numel()])
+                param.copy_((global_w[start_idx:start_idx + param.numel()]).view_as(param))
                 start_idx += param.numel()
         assert start_idx == self._num_parameters
 
-    def _broadcast_weights(self):
+    def _broadcast_weight(self):
         with torch.no_grad():
             for k in range(self.K):
                 model = self.models[k]
@@ -109,6 +123,7 @@ class Trainer:
             output = model(data)
             loss = F.nll_loss(output, target)
             loss.backward()
+            optimizer.step()
         logging.info(f'Local train for device {k}')
     
     def _test(self):
