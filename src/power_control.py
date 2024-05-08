@@ -21,7 +21,7 @@ class PowerControl:
         self.sigma = sigma
 
         self.p_star, self.eta_star = self.compute_optimal_p_and_eta(plot=plot)
-        self.b = self.h_norm * torch.sqrt(self.p_star) / torch.sqrt(self.eta_star)
+        self.h_norm_sqrt_p_star = self.h_norm * torch.sqrt(self.p_star)
         self.k_sqrt_eta_star = self.k * torch.sqrt(self.eta_star)
 
     def _generate_h(self, k):
@@ -32,8 +32,7 @@ class PowerControl:
     
     def receive(self, w):
         assert w.shape[0] == self.k
-        # x = torch.sum(self.b[:,] * w, axis=0)
-        x = torch.matmul(self.b, w)
+        x = torch.matmul(self.h_norm_sqrt_p_star, w)
         z = self._generate_z(shape=x.shape)
         return (x + z) / self.k_sqrt_eta_star
 
@@ -67,4 +66,20 @@ class PowerControl:
             plt.bar(k, p_star, width=width)
             plt.show()
 
+            plt.bar(k, torch.sqrt(p_star) * self.h_norm[sorted_index] / (self.k * torch.sqrt(eta_star)))
+            plt.show()
+
         return p_star, eta_star
+
+if __name__ == '__main__':
+    K: int = 10
+    N = 100
+    MAX_POW: float = 1.0
+    SIGMA: float = 1.0
+    torch.manual_seed(2024)
+    pc = PowerControl(K, MAX_POW, SIGMA, device=torch.device('cpu'), plot=True)
+    # x = torch.normal(0, 1, size=(K, N))
+    x = torch.full((K, N), 1.0)
+    w = pc.receive(x)  # TODO!!! Super suspecious
+    plt.bar(torch.arange(N), w)
+    plt.show()

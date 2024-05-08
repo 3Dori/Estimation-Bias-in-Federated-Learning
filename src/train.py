@@ -5,11 +5,12 @@ import torch.nn.functional as F
 import torch.optim
 from torchvision import datasets, transforms
 
-from model import Net
+from model import CNN, MLP, LogisticRegression
 
 
 class Trainer:
     def __init__(self, batch_size=64, test_batch_size=1000, data_path='../data',
+                 model_name='MLP',
                  learning_rate=0.01, epochs=30, logging_interval=50):
         self.epochs = epochs
         self.logging_interval = logging_interval
@@ -27,16 +28,29 @@ class Trainer:
         self.train_loader = torch.utils.data.DataLoader(train_dataset, **train_kwargs)
         self.test_loader = torch.utils.data.DataLoader(test_dataset, **test_kwargs)
 
-        self.model = Net().to(self.device)
+        MODELS = {'CNN': CNN, 'MLP': MLP, 'LogisticRegression': LogisticRegression}
+        self.model = MODELS[model_name]().to(self.device)
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=learning_rate)
 
-    def train(self):
+    def train(self, compute_norm_weight_update=True):
+        if compute_norm_weight_update:
+            norm_weight_update = 0
+            original_weights = torch.cat(
+                [param.flatten() for param in trainer.model.parameters()])
+
         for epoch in range(self.epochs):
             self._train(epoch)
+            if compute_norm_weight_update:
+                updated_weights = torch.cat(
+                    [param.flatten() for param in trainer.model.parameters()])
+                norm_weight_update += torch.linalg.norm((updated_weights - original_weights)).item() ** 2
+                original_weights = updated_weights
             self._test()
+        if compute_norm_weight_update:
+            logging.info(f'||w||^2 = {norm_weight_update / self.epochs}')
 
-    def save(self):
-        torch.save(self.model.state_dict(), "mnist_cnn.pt")
+    def save(self, model_path='./mnist_cnn.pt'):
+        torch.save(self.model.state_dict(), model_path)
 
     def _train(self, epoch):
         self.model.train()
@@ -67,3 +81,10 @@ class Trainer:
 
         logging.info(f'Test set: Average loss: {test_loss:.4f}, Accuracy: {correct}/{len(self.test_loader.dataset)}'
                      f'({100. * correct / len(self.test_loader.dataset):.1f}%)')
+
+
+if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO)
+
+    trainer = Trainer(epochs=10, model_name='LogisticRegression')
+    trainer.train()

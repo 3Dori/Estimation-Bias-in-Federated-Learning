@@ -5,16 +5,13 @@ from matplotlib import pyplot as plt
 
 from power_control import PowerControl
 from train_fed import Trainer
+from train import Trainer as TT
 
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
-    K: int = 20
-    MAX_POW: float = 1.0
-    SIGMA: float = 1.0
 
-    # pc = PowerControl(K, MAX_POW, SIGMA, device=torch.device('cpu'), plot=False)
-    # print(pc.receive(torch.normal(0, 1, size=(K, 10))))
-
-    trainer = Trainer()
+    # trainer = Trainer(K=10)
+    trainer = TT(epochs=1)
     trainer.train()
+    print(list(trainer.model.parameters())[0])

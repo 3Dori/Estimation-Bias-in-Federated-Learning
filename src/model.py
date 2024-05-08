@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-class Net(nn.Module):
+class CNN(nn.Module):
     def __init__(self):
         super().__init__()
         self.conv1 = nn.Conv2d(1, 32, 3, 1)
@@ -20,5 +20,30 @@ class Net(nn.Module):
         x = torch.flatten(self.dropout1(x), 1)
         x = F.relu(self.fc1(x))
         x = self.fc2(self.dropout2(x))
+        output = F.log_softmax(x, dim=1)
+        return output
+
+
+class MLP(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.linear1 = nn.Linear(784, 10)
+        self.linear2 = nn.Linear(10, 10)
+
+    def forward(self, x: torch.Tensor):
+        x = self.linear1(torch.flatten(x, 1))
+        x = F.relu(x)
+        x = self.linear2(x)
+        output = F.log_softmax(x, dim=1)
+        return output
+
+
+class LogisticRegression(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.linear = nn.Linear(784, 10)
+
+    def forward(self, x: torch.Tensor):
+        x = self.linear(torch.flatten(x, 1))
         output = F.log_softmax(x, dim=1)
         return output
