@@ -11,7 +11,8 @@ from model import CNN, MLP, LogisticRegression
 class Trainer:
     def __init__(self, batch_size=64, test_batch_size=1000, data_path='../data',
                  model_name='MLP',
-                 learning_rate=0.01, epochs=30, logging_interval=50):
+                 learning_rate=0.1, l2_regularization_term=1e-5,
+                 epochs=30, logging_interval=50):
         self.epochs = epochs
         self.logging_interval = logging_interval
         self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
@@ -30,19 +31,19 @@ class Trainer:
 
         MODELS = {'CNN': CNN, 'MLP': MLP, 'LogisticRegression': LogisticRegression}
         self.model = MODELS[model_name]().to(self.device)
-        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=learning_rate)
+        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=learning_rate, weight_decay=l2_regularization_term)
 
     def train(self, compute_norm_weight_update=True):
         if compute_norm_weight_update:
             norm_weight_update = 0
             original_weights = torch.cat(
-                [param.flatten() for param in trainer.model.parameters()])
+                [param.flatten() for param in self.model.parameters()])
 
         for epoch in range(self.epochs):
             self._train(epoch)
             if compute_norm_weight_update:
                 updated_weights = torch.cat(
-                    [param.flatten() for param in trainer.model.parameters()])
+                    [param.flatten() for param in self.model.parameters()])
                 norm_weight_update += torch.linalg.norm((updated_weights - original_weights)).item() ** 2
                 original_weights = updated_weights
             self._test()
@@ -86,5 +87,5 @@ class Trainer:
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
 
-    trainer = Trainer(epochs=10, model_name='LogisticRegression')
+    trainer = Trainer(batch_size=60000, epochs=10, model_name='MLP')
     trainer.train()

@@ -49,10 +49,9 @@ class Trainer:
         self.train_loaders = self._get_MNIST_dataloader(K, batch_size, data_path, is_iid)
         MODELS = {'CNN': CNN, 'MLP': MLP, 'LogisticRegression': LogisticRegression}
         self.models = [MODELS[model_name]().to(self.device) for k in range(K)]
-        self.optimizers = [torch.optim.SGD(model.parameters(), lr=learning_rate) for model in self.models]
+        self.optimizers = [torch.optim.SGD(model.parameters(), lr=learning_rate, weight_decay=l2_regularization_term) for model in self.models]
 
         self.global_model = MODELS[model_name]().to(self.device)
-        self.global_optimizer = torch.optim.SGD(self.global_model.parameters(), weight_decay=l2_regularization_term)
         self._num_parameters = sum(param.numel() for param in self.global_model.parameters())
 
         test_dataset = datasets.MNIST(data_path, train=False, transform=Trainer.MNIST_TRANSFORM)
