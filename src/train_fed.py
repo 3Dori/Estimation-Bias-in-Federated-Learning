@@ -74,7 +74,7 @@ class Trainer:
                 self._train(k)
 
     def _power_controlled_delta_local_weights(self):
-        delta_w = torch.zeros((self.K, self._num_parameters))
+        delta_w = torch.zeros((self.K, self._num_parameters), device=self.device)
         with torch.no_grad():
             for k in range(self.K):
                 model = self.models[k]
@@ -86,7 +86,7 @@ class Trainer:
         return self.power_control.receive(delta_w) 
     
     def _mean_delta_local_weights(self):
-        delta_w = torch.zeros((self._num_parameters,))
+        delta_w = torch.zeros((self._num_parameters,), device=self.device)
         with torch.no_grad():
             for k in range(self.K):
                 model = self.models[k]
