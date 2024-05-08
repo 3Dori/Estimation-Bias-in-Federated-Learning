@@ -27,13 +27,15 @@ class IIDFederatedLearningDataset(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         transformed_idx = len(self) * self.k + idx
         return self.original_dataset[transformed_idx]
-
+    
+# TODO class NonIIDFederatedLearningDataset(torch.utils.data.Dataset)
 
 class Trainer:
     MNIST_TRANSFORM = transforms.Compose([
         transforms.ToTensor(),
         transforms.Normalize((0.1307,), (0.3081,))
     ])
+    MODELS = {'CNN': CNN, 'MLP': MLP, 'LogisticRegression': LogisticRegression}
 
     def __init__(self, K: int = 10, E: int = 1, n_global_rounds: int = 50, is_iid: bool = True,
                  p_max=1.0, sigma=1.0,
@@ -47,11 +49,11 @@ class Trainer:
         self.power_controlled_update = power_controlled_update
 
         self.train_loaders = self._get_MNIST_dataloader(K, batch_size, data_path, is_iid)
-        MODELS = {'CNN': CNN, 'MLP': MLP, 'LogisticRegression': LogisticRegression}
-        self.models = [MODELS[model_name]().to(self.device) for k in range(K)]
+        model = Trainer.MODELS[model_name]
+        self.models = [model().to(self.device) for k in range(K)]
         self.optimizers = [torch.optim.SGD(model.parameters(), lr=learning_rate, weight_decay=l2_regularization_term) for model in self.models]
 
-        self.global_model = MODELS[model_name]().to(self.device)
+        self.global_model = model().to(self.device)
         self._num_parameters = sum(param.numel() for param in self.global_model.parameters())
 
         test_dataset = datasets.MNIST(data_path, train=False, transform=Trainer.MNIST_TRANSFORM)
@@ -83,7 +85,7 @@ class Trainer:
                     delta_w[k,start_idx:start_idx + local_param.numel()] = torch.flatten(local_param - global_param)
                     start_idx += local_param.numel()
                 assert start_idx == self._num_parameters
-        return self.power_control.receive(delta_w) 
+        return self.power_control.receive(delta_w)
     
     def _mean_delta_local_weights(self):
         delta_w = torch.zeros((self._num_parameters,), device=self.device)

@@ -9,6 +9,7 @@ from model import CNN, MLP, LogisticRegression
 
 
 class Trainer:
+    MODELS = {'CNN': CNN, 'MLP': MLP, 'LogisticRegression': LogisticRegression}
     def __init__(self, batch_size=64, test_batch_size=1000, data_path='../data',
                  model_name='MLP',
                  learning_rate=0.1, l2_regularization_term=1e-5,
@@ -29,8 +30,7 @@ class Trainer:
         self.train_loader = torch.utils.data.DataLoader(train_dataset, **train_kwargs)
         self.test_loader = torch.utils.data.DataLoader(test_dataset, **test_kwargs)
 
-        MODELS = {'CNN': CNN, 'MLP': MLP, 'LogisticRegression': LogisticRegression}
-        self.model = MODELS[model_name]().to(self.device)
+        self.model = Trainer.MODELS[model_name]().to(self.device)
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=learning_rate, weight_decay=l2_regularization_term)
 
     def train(self, compute_norm_weight_update=True):

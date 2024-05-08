@@ -30,11 +30,15 @@ class PowerControl:
     def _generate_z(self, shape):
         return torch.normal(0, self.sigma, size=shape, device=self.device)
     
-    def receive(self, w):
-        assert w.shape[0] == self.k
-        x = torch.matmul(self.h_norm_sqrt_p_star, w)
+    def receive(self, delta_w):
+        assert delta_w.shape[0] == self.k
+        mu = delta_w.mean(dim=1)
+        sigma = delta_w.std(dim=1)
+        delta_w = (delta_w - mu[:,None]) / sigma[:,None]
+        x = torch.matmul(self.h_norm_sqrt_p_star, delta_w)
         z = self._generate_z(shape=x.shape)
-        return (x + z) / self.k_sqrt_eta_star
+        y = (x + z) / self.k_sqrt_eta_star
+        return (y * sigma.mean()) + mu.mean()
 
     def compute_optimal_p_and_eta(self, plot: bool = False):
         sorted_p_h_sqaured = self.p_max * (self.h_norm ** 2)
@@ -78,8 +82,7 @@ if __name__ == '__main__':
     SIGMA: float = 1.0
     torch.manual_seed(2024)
     pc = PowerControl(K, MAX_POW, SIGMA, device=torch.device('cpu'), plot=True)
-    # x = torch.normal(0, 1, size=(K, N))
     x = torch.full((K, N), 1.0)
-    w = pc.receive(x)  # TODO!!! Super suspecious
+    w = pc.receive(x)
     plt.bar(torch.arange(N), w)
     plt.show()
