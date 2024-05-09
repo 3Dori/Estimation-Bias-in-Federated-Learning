@@ -1,46 +1,28 @@
 import logging
 
-import numpy as np
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 import torch.optim
-from torchvision import datasets, transforms
 
 from model import CNN, MLP, LogisticRegression
-from dataset.mnist_noniid import MNISTNonIIDDataset
 from power_control import PowerControl
 
 
-class FederatedLearningDataset(torch.utils.data.Dataset):
-    """
-    Generate datasets from the original dataset for federated learning, given the indices on each device.
-    """
-    def __init__(self, original_dataset: torch.utils.data.Dataset, data_idx):
-        super().__init__()
-        self.original_dataset = original_dataset
-        self.data_idx = data_idx
-
-    def __len__(self):
-        return len(self.data_idx)
-    
-    def __getitem__(self, idx):
-        return self.original_dataset[self.data_idx[idx]]
-
-
-class Trainer:
-    MNIST_TRANSFORM = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize((0.1307,), (0.3081,))
-    ])
+class FederatedLearningTrainer:
     MODELS = {'CNN': CNN, 'MLP': MLP, 'LogisticRegression': LogisticRegression}
 
-    def __init__(self, K: int = 10, E: int = 1, n_global_rounds: int = 50,
-                 is_iid: bool = True, gamma=1.0,
-                 p_max=1.0, sigma=1.0,
-                 model_name='MLP', power_controlled_update: bool = True,
-                 batch_size=None, test_batch_size=1000, data_path='../data',
-                 learning_rate=0.1, l2_regularization_term=1e-5):
+    def __init__(self, train_loaders, test_loader,
+                 K: int = 10, E: int = 1, n_global_rounds: int = 50,
+                 model_name='MLP',
+                 learning_rate=0.1, l2_regularization_term=1e-5,
+                 power_controlled_update: bool = True, p_max=1.0, sigma=1.0,
+                 random_seed=None):
+        if random_seed:
+            np.random.seed(random_seed)
+            torch.random.manual_seed(random_seed)
+
         self.K = K
         self.E = E
         self.n_global_rounds = n_global_rounds
@@ -48,9 +30,10 @@ class Trainer:
         logging.info(f'Using device {self.device}')
         self.power_controlled_update = power_controlled_update
 
-        self.train_loaders = self._get_MNIST_dataloader(K, batch_size, data_path, is_iid, gamma)
+        self.train_loaders = train_loaders
+        self.test_loader = test_loader
 
-        model = Trainer.MODELS[model_name]
+        model = FederatedLearningTrainer.MODELS[model_name]
         self.models = [model().to(self.device) for k in range(K)]
         self.optimizers = [
             torch.optim.SGD(model.parameters(), lr=learning_rate, weight_decay=l2_regularization_term)
@@ -58,9 +41,6 @@ class Trainer:
 
         self.global_model = model().to(self.device)
         self._num_parameters = sum(param.numel() for param in self.global_model.parameters())
-
-        test_dataset = datasets.MNIST(data_path, train=False, transform=Trainer.MNIST_TRANSFORM)
-        self.test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=test_batch_size)
 
         self.power_control = PowerControl(K, p_max=p_max, sigma=sigma, device=self.device)
     
@@ -151,20 +131,3 @@ class Trainer:
         logging.info(f'Test set: Average loss: {test_loss:.4f}, '
                      f'Accuracy: {correct}/{len(self.test_loader.dataset)} '
                      f'({100. * correct / len(self.test_loader.dataset):.1f}%)')
-
-    @staticmethod
-    def _get_MNIST_dataloader(K, batch_size, data_path, is_iid, gamma):
-        original_train_dataset = datasets.MNIST(data_path, train=True, download=True,
-                                                transform=Trainer.MNIST_TRANSFORM)
-        if is_iid:
-            size_per_device = len(original_train_dataset) // K
-            fed_datasets = [
-                FederatedLearningDataset(original_train_dataset,
-                                         data_idx=np.arange(k*size_per_device, (k+1)*size_per_device))
-                for k in range(K)]
-        else:
-            data_idx, _ = MNISTNonIIDDataset(original_train_dataset, K, gamma).generate_dataset()
-            fed_datasets = [FederatedLearningDataset(original_train_dataset, idx) for idx in data_idx]
-
-        return [torch.utils.data.DataLoader(dataset, batch_size=batch_size or len(dataset))
-                for dataset in fed_datasets]
