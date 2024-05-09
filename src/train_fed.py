@@ -1,5 +1,6 @@
 import logging
-from math import sqrt
+
+import numpy as np
 
 import torch
 import torch.nn.functional as F
@@ -7,28 +8,25 @@ import torch.optim
 from torchvision import datasets, transforms
 
 from model import CNN, MLP, LogisticRegression
+from dataset.mnist_noniid import MNISTNonIIDDataset
 from power_control import PowerControl
 
 
-class IIDFederatedLearningDataset(torch.utils.data.Dataset):
+class FederatedLearningDataset(torch.utils.data.Dataset):
     """
-    Generate K datasets from the original dataset for federated learning.
+    Generate datasets from the original dataset for federated learning, given the indices on each device.
     """
-    def __init__(self, original_dataset: torch.utils.data.Dataset, K: int, k: int):
+    def __init__(self, original_dataset: torch.utils.data.Dataset, data_idx):
+        super().__init__()
         self.original_dataset = original_dataset
-        self.K = K
-        if k < 0 or k >= K:
-            raise ValueError('k must be in the range [0, K - 1]')
-        self.k = k
+        self.data_idx = data_idx
 
     def __len__(self):
-        return len(self.original_dataset) // self.K
-
-    def __getitem__(self, idx):
-        transformed_idx = len(self) * self.k + idx
-        return self.original_dataset[transformed_idx]
+        return len(self.data_idx)
     
-# TODO class NonIIDFederatedLearningDataset(torch.utils.data.Dataset)
+    def __getitem__(self, idx):
+        return self.original_dataset[self.data_idx[idx]]
+
 
 class Trainer:
     MNIST_TRANSFORM = transforms.Compose([
@@ -37,7 +35,8 @@ class Trainer:
     ])
     MODELS = {'CNN': CNN, 'MLP': MLP, 'LogisticRegression': LogisticRegression}
 
-    def __init__(self, K: int = 10, E: int = 1, n_global_rounds: int = 50, is_iid: bool = True,
+    def __init__(self, K: int = 10, E: int = 1, n_global_rounds: int = 50,
+                 is_iid: bool = True, gamma=1.0,
                  p_max=1.0, sigma=1.0,
                  model_name='MLP', power_controlled_update: bool = True,
                  batch_size=None, test_batch_size=1000, data_path='../data',
@@ -46,12 +45,16 @@ class Trainer:
         self.E = E
         self.n_global_rounds = n_global_rounds
         self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+        logging.info(f'Using device {self.device}')
         self.power_controlled_update = power_controlled_update
 
-        self.train_loaders = self._get_MNIST_dataloader(K, batch_size, data_path, is_iid)
+        self.train_loaders = self._get_MNIST_dataloader(K, batch_size, data_path, is_iid, gamma)
+
         model = Trainer.MODELS[model_name]
         self.models = [model().to(self.device) for k in range(K)]
-        self.optimizers = [torch.optim.SGD(model.parameters(), lr=learning_rate, weight_decay=l2_regularization_term) for model in self.models]
+        self.optimizers = [
+            torch.optim.SGD(model.parameters(), lr=learning_rate, weight_decay=l2_regularization_term)
+            for model in self.models]
 
         self.global_model = model().to(self.device)
         self._num_parameters = sum(param.numel() for param in self.global_model.parameters())
@@ -72,7 +75,7 @@ class Trainer:
 
     def _local_train(self):
         for k in range(self.K):
-            for epoch in range(self.E):
+            for _ in range(self.E):
                 self._train(k)
 
     def _power_controlled_delta_local_weights(self):
@@ -86,7 +89,7 @@ class Trainer:
                     start_idx += local_param.numel()
                 assert start_idx == self._num_parameters
         return self.power_control.receive(delta_w)
-    
+
     def _mean_delta_local_weights(self):
         delta_w = torch.zeros((self._num_parameters,), device=self.device)
         with torch.no_grad():
@@ -123,11 +126,11 @@ class Trainer:
         logging.info(f'Local train for device {k}')
         dataloader, model, optimizer = self.train_loaders[k], self.models[k], self.optimizers[k]
         model.train()
-        for _, (data, target) in enumerate(dataloader):
-            data, target = data.to(self.device), target.to(self.device)
+        for data, targets in dataloader:
+            data, targets = data.to(self.device), targets.to(self.device)
             optimizer.zero_grad()
             output = model(data)
-            loss = F.nll_loss(output, target)
+            loss = F.nll_loss(output, targets)
             loss.backward()
             optimizer.step()
     
@@ -150,13 +153,18 @@ class Trainer:
                      f'({100. * correct / len(self.test_loader.dataset):.1f}%)')
 
     @staticmethod
-    def _get_MNIST_dataloader(K, batch_size, data_path: str, is_iid: bool):
+    def _get_MNIST_dataloader(K, batch_size, data_path, is_iid, gamma):
         original_train_dataset = datasets.MNIST(data_path, train=True, download=True,
                                                 transform=Trainer.MNIST_TRANSFORM)
         if is_iid:
-            train_datasets = [IIDFederatedLearningDataset(original_train_dataset, K, k) for k in range(K)]
+            size_per_device = len(original_train_dataset) // K
+            fed_datasets = [
+                FederatedLearningDataset(original_train_dataset,
+                                         data_idx=np.arange(k*size_per_device, (k+1)*size_per_device))
+                for k in range(K)]
         else:
-            raise NotImplementedError
-        train_loaders = [torch.utils.data.DataLoader(dataset, batch_size=batch_size or len(dataset))
-                         for dataset in train_datasets]
-        return train_loaders
+            data_idx, _ = MNISTNonIIDDataset(original_train_dataset, K, gamma).generate_dataset()
+            fed_datasets = [FederatedLearningDataset(original_train_dataset, idx) for idx in data_idx]
+
+        return [torch.utils.data.DataLoader(dataset, batch_size=batch_size or len(dataset))
+                for dataset in fed_datasets]
