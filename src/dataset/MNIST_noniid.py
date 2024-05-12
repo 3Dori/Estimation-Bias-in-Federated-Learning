@@ -64,11 +64,11 @@ def get_MNIST_dataloader(K, batch_size=None, test_batch_size=1000, data_path='..
         data_idx, _ = MNISTNonIIDDataset(original_train_dataset, K, gamma).generate_dataset()
         fed_datasets = [FederatedLearningDataset(original_train_dataset, idx) for idx in data_idx]
 
-    train_loaders = [torch.utils.data.DataLoader(dataset, batch_size=batch_size or len(dataset))
+    train_loaders = [torch.utils.data.DataLoader(dataset, batch_size=batch_size or len(dataset), pin_memory=True)
                      for dataset in fed_datasets]
     
     test_dataset = datasets.MNIST(data_path, train=False, transform=MNIST_TRANSFORM)
-    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=test_batch_size)
+    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=test_batch_size, pin_memory=True)
 
     return train_loaders, test_loader
 

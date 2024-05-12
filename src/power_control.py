@@ -74,15 +74,41 @@ class PowerControl:
             plt.show()
 
         return p_star, eta_star
+    
+
+def get_bias_term(K=10, max_power=1.0, sigma=1.0, n_experiments=50):
+    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+    b = 0.
+    for n in range(n_experiments):
+        pc = PowerControl(K, max_power, sigma, device=device, plot=False)
+        b += (pc.h_norm_sqrt_p_star / pc.k_sqrt_eta_star).sum().item()
+    return b / n_experiments
+
 
 if __name__ == '__main__':
-    K: int = 10
-    N = 100
-    MAX_POW: float = 1.0
-    SIGMA: float = 1.0
+    import numpy as np
+    import scienceplots
+
+    plt.style.use(['science', 'ieee'])
+
     torch.manual_seed(2024)
-    pc = PowerControl(K, MAX_POW, SIGMA, device=torch.device('cpu'), plot=True)
-    x = torch.full((K, N), 1.0)
-    w = pc.receive(x)
-    plt.bar(torch.arange(N), w)
-    plt.show()
+    sigmas = np.arange(0.1, 2.1, 0.1)
+    bs = [get_bias_term(sigma=sigma) for sigma in sigmas]
+    plt.figure()
+    plt.plot(sigmas, bs)
+    plt.grid()
+    plt.ylim(0.0, 1.0)
+    plt.ylabel('Bias Term B')
+    plt.xlabel('$\\sigma$')
+    plt.savefig('../figures/power_control_sigma_vs_bias.pdf', bbox_inches="tight")
+
+    # K: int = 10
+    # N = 100
+    # MAX_POW: float = 1.0
+    # SIGMA: float = 1.0
+    # device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+    # pc = PowerControl(K, MAX_POW, SIGMA, device=device, plot=True)
+    # x = torch.full((K, N), 1.0)
+    # w = pc.receive(x)
+    # plt.bar(torch.arange(N), w)
+    # plt.show()

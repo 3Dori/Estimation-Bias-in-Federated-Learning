@@ -44,14 +44,17 @@ class FederatedLearningTrainer:
 
         self.power_control = PowerControl(K, p_max=p_max, sigma=sigma, device=self.device)
     
-    def train(self):
+    def train(self, test_loss_out=None, accuracy_out=None):
         for global_round in range(self.n_global_rounds):
             logging.info(f'Global round: {global_round+1}/{self.n_global_rounds} '
                          f'({100. * (global_round+1) / self.n_global_rounds:.0f}%)')
             self._broadcast_weight()
             self._local_train()
             self._global_update()
-            self._test()
+            test_loss, accuracy = self._test()
+            if test_loss_out is not None and accuracy_out is not None:
+                test_loss_out.append(test_loss)
+                accuracy_out.append(accuracy)
 
     def _local_train(self):
         for k in range(self.K):
@@ -128,6 +131,8 @@ class FederatedLearningTrainer:
                 correct += pred.eq(target.view_as(pred)).sum().item()
 
         test_loss /= len(self.test_loader.dataset)
+        accuracy = correct / len(self.test_loader.dataset)
         logging.info(f'Test set: Average loss: {test_loss:.4f}, '
                      f'Accuracy: {correct}/{len(self.test_loader.dataset)} '
-                     f'({100. * correct / len(self.test_loader.dataset):.1f}%)')
+                     f'({100. * accuracy:.1f}%)')
+        return test_loss, accuracy
