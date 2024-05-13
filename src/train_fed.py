@@ -55,6 +55,9 @@ class FederatedLearningTrainer:
             if test_loss_out is not None and accuracy_out is not None:
                 test_loss_out.append(test_loss)
                 accuracy_out.append(accuracy)
+            if np.isnan(test_loss):
+                logging.warning('Got a loss of value NAN')
+                return
 
     def _local_train(self):
         for k in range(self.K):
