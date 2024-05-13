@@ -11,12 +11,12 @@ from model import CNN, MLP, LogisticRegression
 class Trainer:
     MODELS = {'CNN': CNN, 'MLP': MLP, 'LogisticRegression': LogisticRegression}
     def __init__(self, batch_size=64, test_batch_size=1000, data_path='../data',
-                 model_name='MLP',
+                 model_name='MLP', use_cuda=True,
                  learning_rate=0.1, l2_regularization_term=1e-5,
                  epochs=30, logging_interval=50):
         self.epochs = epochs
         self.logging_interval = logging_interval
-        self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+        self.device = torch.device('cuda') if use_cuda and torch.cuda.is_available() else torch.device('cpu')
         train_kwargs = {'batch_size': batch_size}
         test_kwargs = {'batch_size': test_batch_size}
 
