@@ -50,8 +50,8 @@ if __name__ == '__main__':
     results = []
 
     for gamma in np.arange(0.1, 1.1, 0.1):
-        for sigma in np.arange(0.1, 2.1, 0.1):
-            result_dict = experiment(K=10, is_iid=False, gamma=gamma, sigma=sigma)
+        for sigma in np.arange(0.2, 2.2, 0.2):
+            result_dict = experiment(K=10, is_iid=False, gamma=gamma, sigma=sigma, n_experiments=1)
             results.append(result_dict)
 
     with open('results.pkl', 'wb') as f:
