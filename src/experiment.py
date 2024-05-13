@@ -26,6 +26,20 @@ def experiment(K=10, is_iid=False, gamma=0.1, sigma=1.0, batch_size=None, n_glob
     return result_dict
 
 
+def merge_experiment_results(result_dict1, result_dict2):
+    def has_same_key(item1, item2):
+        return all(item1[key] == item2[key]
+                   for key in ['K', 'is_iid', 'gamma', 'sigma', 'batch_size', 'model_name'])
+
+    # O(n^2)
+    for item1 in result_dict1:
+        for item2 in result_dict2:
+            if has_same_key(item1, item2):
+                item1['test_loss'] += item2['test_loss']
+                item1['accuracy'] += item2['accuracy']
+    return result_dict1
+
+
 if __name__ == '__main__':
     import pickle
     import logging
