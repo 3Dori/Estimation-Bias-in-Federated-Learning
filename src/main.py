@@ -12,7 +12,7 @@ import dataset.MNIST_noniid as MNIST_noniid
 
 
 if __name__ == '__main__':
-    # logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.INFO)
 
     train_loaders, test_loader = \
         MNIST_noniid.get_MNIST_dataloader(K=10, is_iid=False, gamma=0.1,

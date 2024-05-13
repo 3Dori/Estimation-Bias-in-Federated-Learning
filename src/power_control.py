@@ -25,7 +25,7 @@ class PowerControl:
         self.k_sqrt_eta_star = self.k * torch.sqrt(self.eta_star)
 
     def _generate_h(self, k):
-        return torch.normal(0, sqrt(2)/2, size=(k, 2), device=self.device).view(torch.complex64)
+        return torch.normal(0, sqrt(2)/2, size=(k, 2), device=self.device, dtype=torch.float32).view(torch.complex32)
     
     def _generate_z(self, shape):
         return torch.normal(0, self.sigma, size=shape, device=self.device)

@@ -1,3 +1,5 @@
+import logging
+
 import numpy as np
 
 import torch
@@ -69,6 +71,7 @@ def get_MNIST_dataloader(K, batch_size=None, test_batch_size=1000, data_path='..
     
     test_dataset = datasets.MNIST(data_path, train=False, transform=MNIST_TRANSFORM)
     test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=test_batch_size, pin_memory=True)
+    logging.info(f'Dataset prepared with is_iid = {is_iid}, gamma = {gamma}')
 
     return train_loaders, test_loader
 
