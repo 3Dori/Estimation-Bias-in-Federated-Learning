@@ -15,7 +15,7 @@ class FederatedLearningTrainer:
 
     def __init__(self, train_loaders, test_loader,
                  K: int = 10, E: int = 1, n_global_rounds: int = 50,
-                 model_name='MLP',
+                 model_name='MLP', use_cuda=True,
                  learning_rate=0.1, l2_regularization_term=1e-5,
                  power_controlled_update: bool = True, p_max=1.0, sigma=1.0,
                  random_seed=None):
@@ -26,7 +26,7 @@ class FederatedLearningTrainer:
         self.K = K
         self.E = E
         self.n_global_rounds = n_global_rounds
-        self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+        self.device = torch.device('cuda') if use_cuda and torch.cuda.is_available() else torch.device('cpu')
         logging.info(f'Using device {self.device}')
         self.power_controlled_update = power_controlled_update
 
