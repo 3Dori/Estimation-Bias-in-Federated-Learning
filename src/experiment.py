@@ -29,21 +29,32 @@ def experiment(K=10, is_iid=False, gamma=0.1, sigma=1.0, batch_size=None, n_glob
 
 def merge_experiment_results(result_dict1, result_dict2):
     def has_same_key(item1, item2):
-        return all(item1[key] == item2[key]
+        def eq(value1, value2):
+            from math import isclose
+            if isinstance(value1, float):
+                return isclose(value1, value2, abs_tol=0.001)
+            else:
+                return value1 == value2
+        return all(eq(item1[key], item2[key])
                    for key in ['K', 'is_iid', 'gamma', 'sigma', 'batch_size', 'model_name'])
 
-    # O(n^2)
+    results = []
     for item1 in result_dict1:
         for item2 in result_dict2:
             if has_same_key(item1, item2):
+                results.append(item1)
                 item1['test_loss'] += item2['test_loss']
                 item1['accuracy'] += item2['accuracy']
-    return result_dict1
+                break
+        else:
+            results.append(item2)
+    return results
 
 
 if __name__ == '__main__':
     import pickle
     import logging
+    from pathlib import Path
     from datetime import datetime
 
     import numpy as np
@@ -51,11 +62,15 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     results = []
 
-    for gamma in np.arange(0.1, 1.1, 0.1):
-        for sigma in np.arange(0.2, 2.2, 0.2):
-            result_dict = experiment(K=10, is_iid=False, gamma=gamma, sigma=sigma, use_cuda=True, n_experiments=1)
+    gamma_ranges = [0.1, 0.5, 1.0, 10.0]
+    sigma_ranges = [0.2, 1.0, 2.0, 10.0]
+
+    for gamma in gamma_ranges:
+        for sigma in sigma_ranges:
+            result_dict = experiment(K=10, is_iid=False, gamma=gamma, sigma=sigma, use_cuda=True, n_experiments=5)
             results.append(result_dict)
 
-    filename = f'results_{datetime.now().strftime("%y%m%d%H%M%S")}.pkl'
+    Path('../results').mkdir(parents=True, exist_ok=True)
+    filename = f'../results/results_{datetime.now().strftime("%y%m%d%H%M%S")}.pkl'
     with open(filename, 'wb') as f:
         pickle.dump(results, f)

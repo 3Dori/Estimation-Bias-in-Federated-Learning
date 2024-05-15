@@ -35,15 +35,21 @@ class MNISTNonIIDDataset:
         self.train_data_idx_by_label = [data_idx[targets == y] for y in range(self.N_CLASSES)]
 
     def generate_dataset(self):
-        distr = np.random.dirichlet([self.gamma] * self.N_CLASSES, self.K)
-        size_per_device_per_class = (distr * self.n_dataset / self.K).round().astype(int)
+        for train_data_idx in self.train_data_idx_by_label:
+            np.random.shuffle(train_data_idx)
+
+        samples_per_class = np.array([len(data) for data in self.train_data_idx_by_label])
+        distr = np.random.dirichlet([self.gamma] * self.K, self.N_CLASSES)
+        splits = distr.cumsum(axis=1) * samples_per_class[:,np.newaxis]
+        splits = np.hstack([np.zeros((self.N_CLASSES, 1)), splits]).astype(int)
 
         data_idx = [None] * self.K
         targets = [None] * self.K
         for k in range(self.K):
-            data_idx[k] = np.concatenate([np.random.choice(self.train_data_idx_by_label[y], size)
-                                          for y, size in enumerate(size_per_device_per_class[k])])
-            targets[k] = np.concatenate([[y] * size for y, size in enumerate(size_per_device_per_class[k])])
+            data_idx[k] = np.concatenate([train_data_idx[split[k]:split[k+1]]
+                                          for train_data_idx, split in zip(self.train_data_idx_by_label, splits)])
+            targets[k] = np.concatenate([[y] * (split[k+1] - split[k])
+                                         for y, split in enumerate(splits)])
         return data_idx, targets
     
 
@@ -80,7 +86,7 @@ if __name__ == '__main__':
     from collections import Counter
 
     original_train_dataset = datasets.MNIST('../data', train=True, download=True)
-    dataset = MNISTNonIIDDataset(original_train_dataset, K=10, gamma=1.0, random_seed=2024)
+    dataset = MNISTNonIIDDataset(original_train_dataset, K=10, gamma=0.1)
     _, targets = dataset.generate_dataset()
     for target_per_device in targets:
         print(Counter(target_per_device))
