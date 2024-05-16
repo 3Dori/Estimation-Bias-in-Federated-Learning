@@ -27,50 +27,32 @@ def experiment(K=10, is_iid=False, gamma=0.1, sigma=1.0, batch_size=None, n_glob
     return result_dict
 
 
-def merge_experiment_results(result_dict1, result_dict2):
-    def has_same_key(item1, item2):
-        def eq(value1, value2):
-            from math import isclose
-            if isinstance(value1, float):
-                return isclose(value1, value2, abs_tol=0.001)
-            else:
-                return value1 == value2
-        return all(eq(item1[key], item2[key])
-                   for key in ['K', 'is_iid', 'gamma', 'sigma', 'batch_size', 'model_name'])
+def save_result(results):
+    import pickle
+    from datetime import datetime
+    from pathlib import Path
 
-    results = []
-    for item1 in result_dict1:
-        for item2 in result_dict2:
-            if has_same_key(item1, item2):
-                results.append(item1)
-                item1['test_loss'] += item2['test_loss']
-                item1['accuracy'] += item2['accuracy']
-                break
-        else:
-            results.append(item2)
-    return results
+    Path('../results').mkdir(parents=True, exist_ok=True)
+    filename = f'./results_{datetime.now().strftime("%y%m%d%H%M%S")}.pkl'
+    with open(filename, 'wb') as f:
+        pickle.dump(results, f)
 
 
 if __name__ == '__main__':
-    import pickle
     import logging
-    from pathlib import Path
-    from datetime import datetime
 
     import numpy as np
 
     logging.basicConfig(level=logging.INFO)
     results = []
 
-    gamma_ranges = [0.1, 0.5, 1.0, 10.0]
-    sigma_ranges = [0.2, 1.0, 2.0, 10.0]
+    gamma_ranges = [0.1, 0.5, 1.0, 5.0, 10.0]
+    # sigma_ranges = [0.2, 1.0, 2.0, 10.0]
+    sigma_ranges = [1.0]
 
     for gamma in gamma_ranges:
         for sigma in sigma_ranges:
-            result_dict = experiment(K=10, is_iid=False, gamma=gamma, sigma=sigma, use_cuda=True, n_experiments=5)
+            result_dict = experiment(K=10, is_iid=False, gamma=gamma, sigma=sigma, use_cuda=False, n_global_rounds=100, n_experiments=20)
             results.append(result_dict)
-
-    Path('../results').mkdir(parents=True, exist_ok=True)
-    filename = f'../results/results_{datetime.now().strftime("%y%m%d%H%M%S")}.pkl'
-    with open(filename, 'wb') as f:
-        pickle.dump(results, f)
+        
+    save_result(results)
