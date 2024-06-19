@@ -46,13 +46,15 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     results = []
 
-    gamma_ranges = [0.1, 0.5, 1.0, 5.0, 10.0]
-    # sigma_ranges = [0.2, 1.0, 2.0, 10.0]
-    sigma_ranges = [1.0]
+    # gamma_ranges = [0.1, 0.5, 1.0, 5.0, 10.0]
+    sigma_ranges = [0.2, 1.0, 2.0, 10.0]
 
-    for gamma in gamma_ranges:
-        for sigma in sigma_ranges:
-            result_dict = experiment(K=10, is_iid=False, gamma=gamma, sigma=sigma, use_cuda=False, n_global_rounds=100, n_experiments=20)
-            results.append(result_dict)
-        
+    # for gamma in gamma_ranges:
+    #     for sigma in sigma_ranges:
+    #         result_dict = experiment(K=10, is_iid=False, gamma=gamma, sigma=sigma, use_cuda=False, n_global_rounds=100, n_experiments=20)
+    #         results.append(result_dict)
+    for sigma in sigma_ranges:
+        result_dict = experiment(K=10, is_iid=True, gamma=1.0, sigma=sigma, use_cuda=False, n_global_rounds=100, n_experiments=20)
+        results.append(result_dict)
+
     save_result(results)

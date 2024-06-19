@@ -43,7 +43,7 @@ class FederatedLearningTrainer:
         self._num_parameters = sum(param.numel() for param in self.global_model.parameters())
 
         self.power_control = PowerControl(K, p_max=p_max, sigma=sigma, device=self.device)
-    
+
     def train(self, test_loss_out=None, accuracy_out=None):
         for global_round in range(self.n_global_rounds):
             logging.info(f'Global round: {global_round+1}/{self.n_global_rounds} '

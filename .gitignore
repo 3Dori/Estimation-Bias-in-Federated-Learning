@@ -1,4 +1,5 @@
 data/
+figures/
 *.pkl
 
 # Byte-compiled / optimized / DLL files

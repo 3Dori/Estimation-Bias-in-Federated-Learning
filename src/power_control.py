@@ -26,10 +26,10 @@ class PowerControl:
 
     def _generate_h(self, k):
         return torch.normal(0, sqrt(2)/2, size=(k, 2), device=self.device, dtype=torch.float32).view(torch.complex32)
-    
+
     def _generate_z(self, shape):
         return torch.normal(0, self.sigma, size=shape, device=self.device)
-    
+
     def receive(self, delta_w):
         assert delta_w.shape[0] == self.k
         mu = delta_w.mean(dim=1)
@@ -74,7 +74,7 @@ class PowerControl:
             plt.show()
 
         return p_star, eta_star
-    
+
 
 def get_bias_term(K=10, max_power=1.0, sigma=1.0, n_experiments=50):
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
