@@ -8,10 +8,10 @@ from train_fed import FederatedLearningTrainer
 from dataset.MNIST_noniid import get_MNIST_dataloader
 
 
-def experiment(K=10, is_iid=False, gamma=0.1, sigma=1.0, batch_size=None, n_global_rounds=60,
+def experiment(K=10, is_iid=False, gamma=0.1, sigma=1.0, batch_size=None, E=1, n_global_rounds=60,
                model_name='LogisticRegression', use_cuda=False, n_experiments=10):
     result_dict = {'K': K, 'is_iid': is_iid, 'gamma': gamma, 'sigma': sigma, 'batch_size': batch_size, 'model_name': model_name, 'test_loss': [], 'accuracy': []}
-    print(f'Running experiment for K = {K}, is_iid = {is_iid}, gamma = {gamma}, sigma = {sigma}, model_name = {model_name}')
+    print(f'Running experiment for K = {K}, is_iid = {is_iid}, gamma = {gamma}, sigma = {sigma}, E = {E}, model_name = {model_name}')
     for n in range(n_experiments):
         print(f'Experiment {n}')
         train_loaders, test_loader = \
@@ -46,15 +46,17 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     results = []
 
-    # gamma_ranges = [0.1, 0.5, 1.0, 5.0, 10.0]
+    gamma_ranges = [0.1, 0.5, 1.0, 5.0]
     sigma_ranges = [0.2, 1.0, 2.0, 10.0]
+    Es = [10, 20, 50, 100, 1000]
 
-    # for gamma in gamma_ranges:
-    #     for sigma in sigma_ranges:
-    #         result_dict = experiment(K=10, is_iid=False, gamma=gamma, sigma=sigma, use_cuda=False, n_global_rounds=100, n_experiments=20)
-    #         results.append(result_dict)
-    for sigma in sigma_ranges:
-        result_dict = experiment(K=10, is_iid=True, gamma=1.0, sigma=sigma, use_cuda=False, n_global_rounds=100, n_experiments=20)
-        results.append(result_dict)
+    for gamma in gamma_ranges:
+        for sigma in sigma_ranges:
+            for E in Es:
+                result_dict = experiment(K=10, is_iid=False, gamma=gamma, sigma=sigma, use_cuda=False, E=E, n_global_rounds=100, n_experiments=5)
+                results.append(result_dict)
+    # for sigma in sigma_ranges:
+    #     result_dict = experiment(K=10, is_iid=True, gamma=1.0, sigma=sigma, use_cuda=False, n_global_rounds=100, n_experiments=20)
+    #     results.append(result_dict)
 
     save_result(results)
