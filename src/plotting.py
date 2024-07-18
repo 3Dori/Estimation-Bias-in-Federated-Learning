@@ -7,6 +7,7 @@ import os.path
 
 import numpy as np
 from matplotlib import pyplot as plt
+from matplotlib.pyplot import cm
 
 
 def merge_experiment_results(result_dict1, result_dict2):
@@ -61,7 +62,7 @@ def merge_experiment_results_in_folder(files=None, root='../results/'):
     return results
 
 
-def plot_with_param_fixed(results, fixed_param='sigma', variable='gamma', max_epochs=60):
+def plot_all(results, fixed_param='sigma', variable='gamma', max_epochs=100):
     import scienceplots
 
     plt.style.use(['science', 'ieee'])
@@ -75,10 +76,10 @@ def plot_with_param_fixed(results, fixed_param='sigma', variable='gamma', max_ep
                         if isclose(result[fixed_param], z, abs_tol=0.001)]
         variables = np.array([result[variable] for result in results_by_z])
         losses = [get_mean(result, key='test_loss') for result in results_by_z]
-        accuracies_for_v = [get_mean(result, key='accuracy') for result in results_by_z]
+        # accuracies_for_v = [get_mean(result, key='accuracy') for result in results_by_z]
 
         plt.figure()
-        for v, y in zip(variables, accuracies_for_v):
+        for v, y in zip(variables, losses):
             if len(y) > max_epochs:
                 y = y[:max_epochs]
             x = np.arange(1, len(y) + 1)
@@ -90,8 +91,44 @@ def plot_with_param_fixed(results, fixed_param='sigma', variable='gamma', max_ep
         plt.savefig(f'../figures/accuracy_{fixed_param}_{z}.pdf', bbox_inches='tight')
 
 
+def plot_with_param_fixed(results, fixed_param=None, variable='gamma', max_epochs=100):
+    import scienceplots
+
+    plt.style.use(['science', 'ieee'])
+
+    def get_mean(results, key='accuracy'):
+        return np.array([row for row in results[key] if len(row) > 1]).mean(axis=0)
+    
+    def is_result_match(result, fixed_param):
+        return all(isclose(result[key], value, abs_tol=0.001) for key, value in fixed_param.items())
+    
+    def gen_fixed_param_str(fixed_param):
+        return ','.join(f'{key}={value}' for key, value in fixed_param.items())
+
+    results_by_z = [result for result in results
+                    if is_result_match(result, fixed_param)]
+    variables = np.array([result[variable] for result in results_by_z])
+    losses = [get_mean(result, key='test_loss') for result in results_by_z]
+    # accuracies_for_v = [get_mean(result, key='accuracy') for result in results_by_z]
+
+    plt.figure()
+    color = cm.rainbow(np.linspace(0, 1, 5))
+    for i, (v, y) in enumerate(zip(variables, losses)):
+        if variable == 'E' and v == 1000:
+            continue
+        if len(y) > max_epochs:
+            y = y[:max_epochs]
+        x = np.arange(1, len(y) + 1)
+        label = 'IID data' if variable == 'gamma' and v == 10.0 else f'${variable}={v}$'
+        plt.plot(x, y, label=label, c=color[i])
+    plt.legend()
+    title = 'IID data' if fixed_param.get('gamma', 0) == 10.0 else f'${gen_fixed_param_str(fixed_param)}$'
+    plt.title(title)
+    plt.savefig(f'../figures/accuracy_{gen_fixed_param_str(fixed_param)}.pdf', bbox_inches='tight')
+
+
 if __name__ == '__main__':
-    with open('../merged_results/iid_non_iid.pkl', 'rb') as f:
+    with open('../results/results_E_gt_1_0712.pkl', 'rb') as f:
         results = pickle.load(f)
-    plot_with_param_fixed(results, fixed_param='sigma', variable='gamma')
+    plot_with_param_fixed(results, fixed_param={'gamma': 1.0, 'sigma': 1.0}, variable='E')
     # plot_with_param_fixed(results, fixed_param='gamma', variable='sigma')
