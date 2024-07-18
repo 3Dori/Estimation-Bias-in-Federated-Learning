@@ -10,7 +10,7 @@ from dataset.MNIST_noniid import get_MNIST_dataloader
 
 def experiment(K=10, is_iid=False, gamma=0.1, sigma=1.0, batch_size=None, E=1, n_global_rounds=60,
                model_name='LogisticRegression', use_cuda=False, n_experiments=10):
-    result_dict = {'K': K, 'is_iid': is_iid, 'gamma': gamma, 'sigma': sigma, 'batch_size': batch_size, 'model_name': model_name, 'test_loss': [], 'accuracy': []}
+    result_dict = {'K': K, 'is_iid': is_iid, 'gamma': gamma, 'sigma': sigma, 'batch_size': batch_size, 'model_name': model_name, 'E': E, 'test_loss': [], 'accuracy': []}
     print(f'Running experiment for K = {K}, is_iid = {is_iid}, gamma = {gamma}, sigma = {sigma}, E = {E}, model_name = {model_name}')
     for n in range(n_experiments):
         print(f'Experiment {n}')
