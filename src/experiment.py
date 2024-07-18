@@ -1,6 +1,7 @@
 import logging
 
 import numpy as np
+import torch.nn.functional as F
 
 from matplotlib import pyplot as plt
 
@@ -18,7 +19,7 @@ def experiment(K=10, is_iid=False, gamma=0.1, sigma=1.0, batch_size=None, E=1, n
             get_MNIST_dataloader(K=K, is_iid=is_iid, gamma=gamma,
                                 batch_size=batch_size, test_batch_size=1000, data_path='../data')
         trainer = FederatedLearningTrainer(train_loaders, test_loader, K=K, n_global_rounds=n_global_rounds,
-                                           model_name=model_name, use_cuda=use_cuda, sigma=sigma)
+                                           model_name=model_name, criterion=F.nll_loss, use_cuda=use_cuda, sigma=sigma)
         test_loss, accuracy = [], []
         trainer.train(test_loss, accuracy)
         result_dict['test_loss'].append(test_loss)
