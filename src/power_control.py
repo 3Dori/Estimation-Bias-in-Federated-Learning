@@ -25,7 +25,7 @@ class PowerControl:
         self.k_sqrt_eta_star = self.k * torch.sqrt(self.eta_star)
 
     def _generate_h(self, k):
-        return torch.normal(0, sqrt(2)/2, size=(k, 2), device=self.device, dtype=torch.float32).view(torch.complex32)
+        return torch.normal(0, sqrt(2)/2, size=(k, 2), device=self.device, dtype=torch.float32).view(torch.complex64)
 
     def _generate_z(self, shape):
         return torch.normal(0, self.sigma, size=shape, device=self.device)
@@ -61,22 +61,32 @@ class PowerControl:
         p_star = torch.where(eta_tilde >= p_h_sqaured, p_max, eta_star / h_squared)
 
         if plot:
-            k = torch.arange(1, self.k+1)
+            k = [str(i) for i in range(1, self.k + 1)]
             width = 0.3
-            plt.bar(k, p_h_sqaured, width=width)
-            plt.bar(k + width, eta_tilde, width=width)
-            plt.show()
+            # plt.bar(k, p_h_sqaured, width=width)
+            # plt.bar(k + width, eta_tilde, width=width)
+            # plt.show()
 
-            plt.bar(k, p_star, width=width)
-            plt.show()
+            # plt.bar(k, p_star, width=width)
+            # plt.show()
+            plt.figure()
+            plt.bar(k, torch.sqrt(p_star) * self.h_norm[sorted_index] / torch.sqrt(eta_star), color='tab:blue')
+            plt.xticks(ticks=[], minor=True)
+            plt.xlabel('Index of each device, $k$')
+            plt.ylabel('$\sqrt{p_k^*} |h_k| / \sqrt{\eta^*}$')
+            plt.savefig('../figures/threshold_based_structure_b.pdf', bbox_inches='tight')
 
-            plt.bar(k, torch.sqrt(p_star) * self.h_norm[sorted_index] / (self.k * torch.sqrt(eta_star)))
-            plt.show()
+            plt.figure()
+            plt.bar(k, p_star, color='tab:blue')
+            plt.xticks(ticks=[], minor=True)
+            plt.xlabel('Index of each device, $k$')
+            plt.ylabel('$p_k^*$')
+            plt.savefig('../figures/threshold_based_structure_p.pdf', bbox_inches='tight')
 
         return p_star, eta_star
 
 
-def get_bias_term(K=10, max_power=1.0, sigma=1.0, n_experiments=50):
+def get_bias_term(K=10, max_power=1.0, sigma=1.0, n_experiments=250):
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
     b = 0.
     for n in range(n_experiments):
@@ -85,21 +95,33 @@ def get_bias_term(K=10, max_power=1.0, sigma=1.0, n_experiments=50):
     return b / n_experiments
 
 
-if __name__ == '__main__':
+def plot_power_control_sigma():
     import numpy as np
     import scienceplots
+    from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+    from mpl_toolkits.axes_grid1.inset_locator import mark_inset
 
     plt.style.use(['science', 'ieee'])
 
-    torch.manual_seed(2024)
-    sigmas = np.arange(0.1, 2.1, 0.1)
+    sigmas = np.arange(0.1, 10.1, 0.1)
     bs = [get_bias_term(sigma=sigma) for sigma in sigmas]
-    plt.figure()
-    plt.plot(sigmas, bs)
-    plt.grid()
-    plt.ylim(0.0, 1.0)
-    plt.ylabel('Bias Term B')
+    # plt.figure()
+
+    fig, ax = plt.subplots(figsize=[5,4])
+    plt.ylabel('$\\bar{b} = \\frac{1}{K} \\sum_{k=1}^K b_k = \\frac{1}{K} \\sum_{k=1}^K  \\frac{\\sqrt{p_k} |h_k|}{\\sqrt{\\eta}}$')
     plt.xlabel('$\\sigma$')
+    ax.plot(sigmas, bs)
+    ax.set_xlim(0, 10)
+    axins = inset_axes(ax, loc=1, width=2.2, height=1.8)
+    x1, x2, y1, y2 = 3.5, 10, 0, 0.02
+    data_x = int(len(sigmas) * x1 / 10) - 1
+    axins.plot(sigmas[data_x:], bs[data_x:])
+    axins.set_xlim(x1, x2)
+    axins.set_ylim(y1, y2)
+    mark_inset(ax, axins, loc1=2, loc2=3, fc="none", ec="0.5")
+    ax.grid()
+    axins.grid()
+    plt.draw()
     plt.savefig('../figures/power_control_sigma_vs_bias.pdf', bbox_inches="tight")
 
     # K: int = 10
@@ -111,4 +133,3 @@ if __name__ == '__main__':
     # x = torch.full((K, N), 1.0)
     # w = pc.receive(x)
     # plt.bar(torch.arange(N), w)
-    # plt.show()
