@@ -66,6 +66,51 @@ class MatDNNDataset(Dataset):
     def __len__(self):
         # Subtract sequence length to ensure we don't sample out of bounds
         return len(self.data) - self.window_size + 1
+    
+
+class MatDNNDatasetVoltage(Dataset):
+    def __init__(self, root, window_size):
+        self.data = loadmat(root)
+        self.window_size = window_size
+
+        # Panasonic Ah capacity
+        self.BATTERY_AH_CAPACITY = 2.9000
+
+        # Construct dataframe from MATLAB data
+        self.df = pd.DataFrame(self.data)
+        self.df = self.df.T
+        self.df = self.df.apply(lambda x : pd.Series(x[0]))
+        self.df = self.df.applymap(lambda x : x[0])
+
+        # Clean up unnecessary columns
+        del self.df['Chamber_Temp_degC']
+        del self.df['TimeStamp']
+        del self.df['Time']
+        del self.df['Power']
+        del self.df['Wh']
+
+        self.df['rol_Current'] = self.df['Current'].rolling(window_size).mean()
+
+        self.df['Vol'] = self.df['Voltage']
+        del self.df['Voltage']
+
+        # Convert data to numpy
+        self.data = self.df.to_numpy(dtype=np.float32)
+
+        # Set values for dataset
+        self.x = torch.from_numpy(self.data[:,:-1])
+        self.y = torch.from_numpy(self.data[:,-1])
+
+        # Reshape to match required label tensor shape
+        self.y = self.y.reshape((len(self.y), 1))
+
+    def __getitem__(self, idx):
+        # Return window with the state of charge of last element in window (time series data + state of charge at the very end)
+        return self.x[idx + self.window_size - 1, :], self.y[idx + self.window_size - 1]
+
+    def __len__(self):
+        # Subtract sequence length to ensure we don't sample out of bounds
+        return len(self.data) - self.window_size + 1
 
 
 class MatRNNDataset(Dataset):
@@ -163,13 +208,16 @@ def get_li_ion_dataloader(train_data_path="data/Panasonic 18650PF Data/0degC/Dri
                               "06-01-17_15.36 0degC_Cycle_3_Pan18650PF.mat",
                               "06-01-17_22.03 0degC_Cycle_4_Pan18650PF.mat"
                           ],
+                          load_voltage=False,
                           test_data_path="data/Panasonic 18650PF Data/0degC/Drive cycles/06-02-17_10.43 0degC_HWFET_Pan18650PF.mat",
-                          window_size=20, batch_size=None, test_batch_size=1000):
+                          window_size=20, batch_size=None, test_batch_size=1000,
+                          shuffle=True):
     import os.path
-    train_datasets = [MatDNNDataset(os.path.join(train_data_path, f), window_size) for f in train_files]
-    test_dataset = MatDNNDataset(test_data_path, window_size)
+    DataSet = MatDNNDatasetVoltage if load_voltage else MatDNNDataset
+    train_datasets = [DataSet(os.path.join(train_data_path, f), window_size) for f in train_files]
+    test_dataset = DataSet(test_data_path, window_size)
 
-    train_loaders = [DataLoader(dataset=d, batch_size=batch_size, shuffle=True) for d in train_datasets]
+    train_loaders = [DataLoader(dataset=d, batch_size=batch_size, shuffle=shuffle) for d in train_datasets]
     test_loader = DataLoader(test_dataset, batch_size=test_batch_size, shuffle=False)
 
     return train_loaders, test_loader

@@ -10,6 +10,14 @@ from matplotlib import pyplot as plt
 from matplotlib.pyplot import cm
 
 
+def merge_experiment_results_from_path(path1, path2):
+    with open(path1, 'rb') as f1:
+        result_dict1 = pickle.load(f1)
+    with open(path2, 'rb') as f2:
+        result_dict2 = pickle.load(f2)
+    return merge_experiment_results(result_dict1, result_dict2)
+
+
 def merge_experiment_results(result_dict1, result_dict2):
     def has_same_key(item1, item2):
         def eq(value1, value2):
@@ -83,10 +91,10 @@ def plot_all(results, fixed_param='sigma', variable='gamma', max_epochs=100):
             if len(y) > max_epochs:
                 y = y[:max_epochs]
             x = np.arange(1, len(y) + 1)
-            label = 'IID data' if variable == 'gamma' and v == 10.0 else f'${variable}={v}$'
+            label = 'IID data' if variable == 'gamma' and v == 10.0 else f'$\\{variable}={v}$'
             plt.plot(x, y, label=label)
         plt.legend()
-        title = 'IID data' if fixed_param == 'gamma' and z == 10.0 else f'${fixed_param}={z}$'
+        title = 'IID data' if fixed_param == 'gamma' and z == 10.0 else f'$\\{fixed_param}={z}$'
         plt.title(title)
         plt.savefig(f'../figures/accuracy_{fixed_param}_{z}.pdf', bbox_inches='tight')
 
@@ -103,7 +111,7 @@ def plot_with_param_fixed(results, fixed_param=None, variable='gamma', max_epoch
         return all(isclose(result[key], value, abs_tol=0.001) for key, value in fixed_param.items())
     
     def gen_fixed_param_str(fixed_param):
-        return ','.join(f'{key}={value}' for key, value in fixed_param.items())
+        return ','.join(f'\\{key}={value}' for key, value in fixed_param.items())
 
     results_by_z = [result for result in results
                     if is_result_match(result, fixed_param)]
@@ -122,13 +130,15 @@ def plot_with_param_fixed(results, fixed_param=None, variable='gamma', max_epoch
         label = 'IID data' if variable == 'gamma' and v == 10.0 else f'${variable}={v}$'
         plt.plot(x, y, label=label, c=color[i])
     plt.legend()
+    plt.xlabel('Global round')
+    plt.ylabel('Loss')
     title = 'IID data' if fixed_param.get('gamma', 0) == 10.0 else f'${gen_fixed_param_str(fixed_param)}$'
     plt.title(title)
     plt.savefig(f'../figures/accuracy_{gen_fixed_param_str(fixed_param)}.pdf', bbox_inches='tight')
 
 
 if __name__ == '__main__':
-    with open('../results/results_E_gt_1_0712.pkl', 'rb') as f:
+    with open('../results/results_E_10_to_50.pkl', 'rb') as f:
         results = pickle.load(f)
     plot_with_param_fixed(results, fixed_param={'gamma': 1.0, 'sigma': 1.0}, variable='E')
     # plot_with_param_fixed(results, fixed_param='gamma', variable='sigma')

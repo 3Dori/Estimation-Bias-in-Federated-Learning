@@ -9,6 +9,12 @@ from model import CNN, MLP, LogisticRegression
 from power_control import PowerControl
 
 
+# def init_weights(m):
+#     if isinstance(m, torch.nn.Linear):
+#         torch.nn.init.xavier_uniform(m.weight)
+#         m.bias.data.fill_(0.01)
+
+
 class FederatedLearningTrainer:
     MODELS = {'CNN': CNN, 'MLP': MLP, 'LogisticRegression': LogisticRegression}
 

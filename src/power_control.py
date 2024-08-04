@@ -133,3 +133,21 @@ def plot_power_control_sigma():
     # x = torch.full((K, N), 1.0)
     # w = pc.receive(x)
     # plt.bar(torch.arange(N), w)
+
+
+if __name__ == '__main__':
+    import numpy as np
+    import scienceplots
+
+    plt.style.use(['science', 'ieee'])
+
+    torch.manual_seed(2024)
+    sigma_sqs = np.arange(0.1, 10.1, 0.1)
+    bs = [get_bias_term(sigma=sqrt(sigma)) for sigma in sigma_sqs]
+    plt.figure()
+    plt.plot(sigma_sqs, bs)
+    plt.grid()
+    plt.ylim(0.0, 1.0)
+    plt.ylabel('Bias Term B')
+    plt.xlabel('$\\sigma$')
+    plt.savefig('../figures/power_control_sigma_vs_bias.pdf', bbox_inches="tight")
