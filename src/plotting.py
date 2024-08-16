@@ -8,6 +8,8 @@ import os.path
 import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.pyplot import cm
+from mpl_toolkits.axes_grid1.inset_locator import zoomed_inset_axes, inset_axes
+from mpl_toolkits.axes_grid1.inset_locator import mark_inset
 
 
 def merge_experiment_results_from_path(path1, path2):
@@ -26,7 +28,7 @@ def merge_experiment_results(result_dict1, result_dict2):
             else:
                 return value1 == value2
         return all(eq(item1[key], item2[key])
-                   for key in ['K', 'is_iid', 'gamma', 'sigma', 'batch_size', 'model_name'])
+                   for key in ['K', 'E', 'beta', 'is_iid', 'gamma', 'sigma', 'batch_size', 'model_name'])
 
     results = []
     for item1 in result_dict1:
@@ -70,7 +72,7 @@ def merge_experiment_results_in_folder(files=None, root='../results/'):
     return results
 
 
-def plot_all(results, fixed_param='sigma', variable='gamma', max_epochs=100):
+def plot_all(results, fixed_param='sigma', variable='gamma', max_epochs=100, inset_axis=True):
     import scienceplots
 
     plt.style.use(['science', 'ieee'])
@@ -81,25 +83,46 @@ def plot_all(results, fixed_param='sigma', variable='gamma', max_epochs=100):
     zs = {round(result[fixed_param], 2) for result in results}
     for z in zs:
         results_by_z = [result for result in results
-                        if isclose(result[fixed_param], z, abs_tol=0.001)]
+                        if isclose(result[fixed_param], z, abs_tol=0.01)]
         variables = np.array([result[variable] for result in results_by_z])
         losses = [get_mean(result, key='test_loss') for result in results_by_z]
         # accuracies_for_v = [get_mean(result, key='accuracy') for result in results_by_z]
 
-        plt.figure()
-        for v, y in zip(variables, losses):
+        color = cm.rainbow(np.linspace(0, 1, len(variables)))
+        fig, ax = plt.subplots(figsize=[5,4])
+        if inset_axes:
+            axins = ax.inset_axes([0.21, 0.6, 0.5, 0.33])
+            x1, x2, y1, y2 = 25, 30, 0.29, 0.37
+            axins.set_xlim(x1, x2)
+            axins.set_ylim(y1, y2)
+        for i, (v, y) in enumerate(zip(variables, losses)):
+            y = np.hstack((np.array([2.5988]), y))
             if len(y) > max_epochs:
                 y = y[:max_epochs]
-            x = np.arange(1, len(y) + 1)
-            label = 'IID data' if variable == 'gamma' and v == 10.0 else f'$\\{variable}={v}$'
-            plt.plot(x, y, label=label)
-        plt.legend()
-        title = 'IID data' if fixed_param == 'gamma' and z == 10.0 else f'$\\{fixed_param}={z}$'
-        plt.title(title)
-        plt.savefig(f'../figures/accuracy_{fixed_param}_{z}.pdf', bbox_inches='tight')
+            x = np.arange(0, len(y) + 0)
+            if variable == 'sigma':
+                label = f'$\\sigma^2={v**2:.1f}$'
+            elif variable == 'gamma' and v == 10.0:
+                label = 'IID data'
+            else:
+                label = f'$\\{variable}={v}$'
+            ax.plot(x, y, '-', label=label, c=color[i], linewidth=0.6)
+            if inset_axes:
+                axins.plot(x, y, '-', label=label, c=color[i], linewidth=0.6)
+        if fixed_param == 'sigma':
+            title = f'$\\sigma^2={z**2:.1f}$'
+        elif fixed_param == 'gamma' and z == 10.0:
+            title = 'IID data'
+        else:
+            title = f'$\\{fixed_param}={z}$'
+        ax.legend()
+        ax.set_xlabel('Communication round')
+        ax.set_ylabel('Test loss')
+        ax.set_title(title)
+        plt.savefig(f'../figures/test_loss_{fixed_param}_{z}.pdf', bbox_inches='tight')
 
 
-def plot_with_param_fixed(results, fixed_param=None, variable='gamma', max_epochs=100):
+def plot_with_param_fixed(results, fixed_param=None, variable='gamma', max_epochs=100, inset_axes=True):
     import scienceplots
 
     plt.style.use(['science', 'ieee'])
@@ -119,26 +142,54 @@ def plot_with_param_fixed(results, fixed_param=None, variable='gamma', max_epoch
     losses = [get_mean(result, key='test_loss') for result in results_by_z]
     # accuracies_for_v = [get_mean(result, key='accuracy') for result in results_by_z]
 
-    plt.figure()
-    color = cm.rainbow(np.linspace(0, 1, 5))
+    fig, ax = plt.subplots(figsize=[5,4])
+    if inset_axes:
+        axins = ax.inset_axes([0.2, 0.6, 0.5, 0.33])
+        x1, x2, y1, y2 = 50, 60, 0.28, 0.3
+        axins.set_xlim(x1, x2)
+        axins.set_ylim(y1, y2)
+    color = cm.rainbow(np.linspace(0, 1, len(variables)))
     for i, (v, y) in enumerate(zip(variables, losses)):
         if variable == 'E' and v == 1000:
             continue
         if len(y) > max_epochs:
             y = y[:max_epochs]
         x = np.arange(1, len(y) + 1)
-        label = 'IID data' if variable == 'gamma' and v == 10.0 else f'${variable}={v}$'
-        plt.plot(x, y, label=label, c=color[i])
-    plt.legend()
-    plt.xlabel('Global round')
-    plt.ylabel('Loss')
-    title = 'IID data' if fixed_param.get('gamma', 0) == 10.0 else f'${gen_fixed_param_str(fixed_param)}$'
-    plt.title(title)
-    plt.savefig(f'../figures/accuracy_{gen_fixed_param_str(fixed_param)}.pdf', bbox_inches='tight')
+        label = 'IID data' if variable == 'gamma' and v == 10.0 else f'$\\{variable}={v}$'
+        ax.plot(x, y, '-', label=label, c=color[i], linewidth=0.6)
+        if inset_axes:
+            axins.plot(x, y, '-', label=label, c=color[i], linewidth=0.6)
+    ax.legend()
+    ax.set_xlabel('Communication round')
+    ax.set_ylabel('Test loss')
+    # title = 'IID data' if fixed_param.get('gamma', 0) == 10.0 else f'${gen_fixed_param_str(fixed_param)}$'
+    # ax.set_title(title)
+    plt.savefig(f'../figures/loss_{gen_fixed_param_str(fixed_param)}.pdf', bbox_inches='tight')
 
 
 if __name__ == '__main__':
-    with open('../results/results_E_10_to_50.pkl', 'rb') as f:
+    # with open('../results/results_E_10_gamma_sigma.pkl', 'rb') as f:
+    #     results = pickle.load(f)
+    # plot_all(results, fixed_param='gamma', variable='sigma')
+    # plot_all(results, fixed_param='sigma', variable='gamma')
+
+    # Experiment with E
+    # with open('../results/results_E_10_to_50.pkl', 'rb') as f:
+    #     results = pickle.load(f)
+    # plot_with_param_fixed(results, fixed_param={'gamma': 1.0, 'sigma': 1.0}, variable='E')
+    # plot_with_param_fixed(results, fixed_param='gamma', variable='sigma')
+
+    # Experiment with beta
+    # with open('../results/results_beta.pkl', 'rb') as f:
+    #     results = pickle.load(f)
+    # plot_with_param_fixed(results, fixed_param={'gamma': 1.0, 'sigma': 1.0, 'E': 10}, variable='beta')
+
+    with open('../results/results_beta_0.1_to_0.2.pkl', 'rb') as f:
         results = pickle.load(f)
-    plot_with_param_fixed(results, fixed_param={'gamma': 1.0, 'sigma': 1.0}, variable='E')
+    plot_with_param_fixed(results, fixed_param={'gamma': 1.0, 'sigma': 1.0, 'E': 10}, variable='beta')
+
+    # Experiment with E - Li-ion
+    # with open('../results_li_ion/results_li_ion_240814012053.pkl', 'rb') as f:
+    #     results = pickle.load(f)
+    # plot_with_param_fixed(results, fixed_param={'E': 10}, variable='sigma', inset_axes=False)
     # plot_with_param_fixed(results, fixed_param='gamma', variable='sigma')

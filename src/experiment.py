@@ -5,16 +5,14 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-from matplotlib import pyplot as plt
-
 from train_fed import FederatedLearningTrainer
 from dataset.MNIST_noniid import get_MNIST_dataloader
 
 
-def experiment(K=10, is_iid=False, gamma=0.1, sigma=1.0, batch_size=None, E=1, n_global_rounds=60,
+def experiment(K=10, is_iid=False, gamma=0.1, sigma=1.0, beta=0.1, batch_size=None, E=1, n_global_rounds=60,
                model_name='LogisticRegression', use_cuda=False, n_experiments=10, random_seed=None):
-    result_dict = {'K': K, 'is_iid': is_iid, 'gamma': gamma, 'sigma': sigma, 'batch_size': batch_size, 'model_name': model_name, 'E': E, 'test_loss': [], 'accuracy': []}
-    print(f'Running experiment for K = {K}, is_iid = {is_iid}, gamma = {gamma}, sigma = {sigma}, E = {E}, model_name = {model_name}')
+    result_dict = {'K': K, 'is_iid': is_iid, 'gamma': gamma, 'sigma': sigma, 'beta': beta, 'batch_size': batch_size, 'model_name': model_name, 'E': E, 'test_loss': [], 'accuracy': []}
+    print(f'Running experiment for K = {K}, is_iid = {is_iid}, gamma = {gamma}, sigma = {sigma}, beta = {beta}, E = {E}, model_name = {model_name}')
     for n in range(n_experiments):
         print(f'Experiment {n}')
         if random_seed:
@@ -24,7 +22,7 @@ def experiment(K=10, is_iid=False, gamma=0.1, sigma=1.0, batch_size=None, E=1, n
         train_loaders, test_loader = \
             get_MNIST_dataloader(K=K, is_iid=is_iid, gamma=gamma,
                                 batch_size=batch_size, test_batch_size=1000, data_path='../data')
-        trainer = FederatedLearningTrainer(train_loaders, test_loader, K=K, E=E, n_global_rounds=n_global_rounds,
+        trainer = FederatedLearningTrainer(train_loaders, test_loader, K=K, E=E, learning_rate=beta, n_global_rounds=n_global_rounds,
                                            model_name=model_name, criterion=F.nll_loss, use_cuda=use_cuda, sigma=sigma)
         test_loss, accuracy = [], []
         trainer.train(test_loss, accuracy)
@@ -53,26 +51,30 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     results = []
 
-    gamma_ranges = [0.1, 0.5, 1.0, 5.0, None]
-    sigma_ranges = [0.2, 1.0, 2.0, 5.0, 10.0]
+    # gamma_ranges = [0.1, 0.5, 1.0, 5.0, None]
+    # sigma_ranges = [0.2, 1.0, 2.0, 5.0, 10.0]
+    # sigma_ranges = [4.0]
     # Es = [10, 20, 50, 100, 1000]
-    # gamma_ranges = [1.0]
-    # sigma_ranges = [1.0]
+    gamma_ranges = [1.0]
+    sigma_ranges = [1.0]
     Es = [10]
+    betas = [0.01, 0.02, 0.05, 0.1, 0.2, 0.5]
     # Es = [1, 3, 10, 32, 100, 316, 1000, 3162]
     # Es = [10, 20, 30, 40, 50]
+    n_global_rounds = 30
+    n_experiments = 1
 
     for gamma in gamma_ranges:
         for sigma in sigma_ranges:
             sigma = sqrt(sigma)
             for E in Es:
-                if gamma is None:
-                    result_dict = experiment(K=10, is_iid=True, sigma=sigma, use_cuda=False,
-                                             E=E, n_global_rounds=30, n_experiments=1, random_seed=2024)
-                else:
-                    result_dict = experiment(K=10, is_iid=False, gamma=gamma, sigma=sigma, use_cuda=False,
-                                             E=E, n_global_rounds=30, n_experiments=1, random_seed=2024)
-                results.append(result_dict)
+                for beta in betas:
+                    is_iid = gamma is None
+                    gamma = gamma or 10.0
+                    result_dict = experiment(K=10, is_iid=is_iid, gamma=gamma, sigma=sigma, beta=beta, E=E,
+                                             use_cuda=False,
+                                             n_global_rounds=n_global_rounds, n_experiments=n_experiments, random_seed=2024)
+                    results.append(result_dict)
     # for sigma in sigma_ranges:
     #     result_dict = experiment(K=10, is_iid=True, gamma=1.0, sigma=sigma, use_cuda=False, n_global_rounds=100, n_experiments=20)
     #     results.append(result_dict)

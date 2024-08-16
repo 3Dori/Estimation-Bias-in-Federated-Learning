@@ -148,6 +148,6 @@ if __name__ == '__main__':
     plt.plot(sigma_sqs, bs)
     plt.grid()
     plt.ylim(0.0, 1.0)
-    plt.ylabel('Bias Term B')
-    plt.xlabel('$\\sigma$')
+    plt.ylabel('$\\bar{b} = \\frac{1}{K} \\sum_{k=1}^K b_k = \\frac{1}{K} \\sum_{k=1}^K  \\frac{\\sqrt{p_k} |h_k|}{\\sqrt{\\eta}}$')
+    plt.xlabel('$\\sigma^2$')
     plt.savefig('../figures/power_control_sigma_vs_bias.pdf', bbox_inches="tight")
