@@ -12,11 +12,19 @@ from mpl_toolkits.axes_grid1.inset_locator import zoomed_inset_axes, inset_axes
 from mpl_toolkits.axes_grid1.inset_locator import mark_inset
 
 
+def load_pkl(path):
+    with open(path, 'rb') as f:
+        return pickle.load(f)
+    
+
+def save_pkl(d, path):
+    with open(path, 'wb') as f:
+        pickle.dump(d, f)
+
+
 def merge_experiment_results_from_path(path1, path2):
-    with open(path1, 'rb') as f1:
-        result_dict1 = pickle.load(f1)
-    with open(path2, 'rb') as f2:
-        result_dict2 = pickle.load(f2)
+    result_dict1 = load_pkl(path1)
+    result_dict2 = load_pkl(path2)
     return merge_experiment_results(result_dict1, result_dict2)
 
 
@@ -24,7 +32,7 @@ def merge_experiment_results(result_dict1, result_dict2):
     def has_same_key(item1, item2):
         def eq(value1, value2):
             if isinstance(value1, float):
-                return isclose(value1, value2, abs_tol=0.01)
+                return isclose(value1, value2, abs_tol=0.0001)
             else:
                 return value1 == value2
         return all(eq(item1[key], item2[key])
@@ -39,16 +47,10 @@ def merge_experiment_results(result_dict1, result_dict2):
                 item1['accuracy'] += item2['accuracy']
                 break
     for item1 in result_dict1:
-        for item2 in result_dict2:
-            if has_same_key(item1, item2):
-                break
-        else:
+        if not any(has_same_key(item1, item2) for item2 in result_dict2):
             results.append(item1)
     for item2 in result_dict2:
-        for item1 in result_dict1:
-            if has_same_key(item1, item2):
-                break
-        else:
+        if not any(has_same_key(item1, item2) for item1 in result_dict1):
             results.append(item2)
     return results
 
@@ -122,7 +124,7 @@ def plot_all(results, fixed_param='sigma', variable='gamma', max_epochs=100, ins
         plt.savefig(f'../figures/test_loss_{fixed_param}_{z}.pdf', bbox_inches='tight')
 
 
-def plot_with_param_fixed(results, fixed_param=None, variable='gamma', max_epochs=100, inset_axes=True):
+def plot_with_param_fixed(results, fixed_param=None, variable='gamma', max_epochs=150, inset_axes=True):
     import scienceplots
 
     plt.style.use(['science', 'ieee'])
@@ -145,7 +147,7 @@ def plot_with_param_fixed(results, fixed_param=None, variable='gamma', max_epoch
     fig, ax = plt.subplots(figsize=[5,4])
     if inset_axes:
         axins = ax.inset_axes([0.2, 0.6, 0.5, 0.33])
-        x1, x2, y1, y2 = 50, 60, 0.28, 0.3
+        x1, x2, y1, y2 = 140, 150, 0.28, 0.283
         axins.set_xlim(x1, x2)
         axins.set_ylim(y1, y2)
     color = cm.rainbow(np.linspace(0, 1, len(variables)))
@@ -155,7 +157,12 @@ def plot_with_param_fixed(results, fixed_param=None, variable='gamma', max_epoch
         if len(y) > max_epochs:
             y = y[:max_epochs]
         x = np.arange(1, len(y) + 1)
-        label = 'IID data' if variable == 'gamma' and v == 10.0 else f'$\\{variable}={v}$'
+        if variable == 'sigma':
+            label = f'$\\sigma^2={v**2:.1f}$'
+        elif variable == 'gamma' and v == 10.0:
+            label = 'IID data'
+        else:
+            label = f'$\\{variable}={v}$'
         ax.plot(x, y, '-', label=label, c=color[i], linewidth=0.6)
         if inset_axes:
             axins.plot(x, y, '-', label=label, c=color[i], linewidth=0.6)
@@ -164,7 +171,7 @@ def plot_with_param_fixed(results, fixed_param=None, variable='gamma', max_epoch
     ax.set_ylabel('Test loss')
     # title = 'IID data' if fixed_param.get('gamma', 0) == 10.0 else f'${gen_fixed_param_str(fixed_param)}$'
     # ax.set_title(title)
-    plt.savefig(f'../figures/loss_{gen_fixed_param_str(fixed_param)}.pdf', bbox_inches='tight')
+    plt.savefig(f'../figures/li_loss_{gen_fixed_param_str(fixed_param)}.pdf', bbox_inches='tight')
 
 
 if __name__ == '__main__':
@@ -184,12 +191,12 @@ if __name__ == '__main__':
     #     results = pickle.load(f)
     # plot_with_param_fixed(results, fixed_param={'gamma': 1.0, 'sigma': 1.0, 'E': 10}, variable='beta')
 
-    with open('../results/results_beta_0.1_to_0.2.pkl', 'rb') as f:
-        results = pickle.load(f)
-    plot_with_param_fixed(results, fixed_param={'gamma': 1.0, 'sigma': 1.0, 'E': 10}, variable='beta')
+    # with open('../results/results_beta_0.1_0.14_0.15.pkl', 'rb') as f:
+    #     results = pickle.load(f)
+    # plot_with_param_fixed(results, fixed_param={'gamma': 1.0, 'sigma': 1.0, 'E': 10}, variable='beta')
 
     # Experiment with E - Li-ion
-    # with open('../results_li_ion/results_li_ion_240814012053.pkl', 'rb') as f:
-    #     results = pickle.load(f)
-    # plot_with_param_fixed(results, fixed_param={'E': 10}, variable='sigma', inset_axes=False)
+    with open('../results_li_ion/results_li_ion_240818143159.pkl', 'rb') as f:
+        results = pickle.load(f)
+    plot_with_param_fixed(results, fixed_param={'E': 10}, variable='sigma', inset_axes=False)
     # plot_with_param_fixed(results, fixed_param='gamma', variable='sigma')

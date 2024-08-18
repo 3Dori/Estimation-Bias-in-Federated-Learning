@@ -3,6 +3,7 @@ from datetime import datetime
 from math import sqrt
 
 import numpy as np
+import torch
 import torch.nn.functional as F
 
 from matplotlib import pyplot as plt
@@ -15,14 +16,17 @@ from model import NeuralNet
 
 def experiment(K=4, sigma=1.0, beta=0.1, batch_size=None, E=1, n_global_rounds=60,
                model_name='MLP',
-               use_cuda=False, n_experiments=10):
+               use_cuda=False, n_experiments=10, random_seed=None):
     result_dict = {'K': K, 'E': E, 'sigma': sigma, 'beta': beta, 'batch_size': batch_size, 'model_name': model_name, 'test_loss': []}
     print(f'Running experiment for K = {K}, sigma = {sigma}, E = {E}, beta = {beta}, model_name = {model_name}')
+    if random_seed:
+        np.random.seed(random_seed)
+        torch.random.manual_seed(random_seed)
     for n in range(n_experiments):
         print(f'Experiment {n}')
         train_loaders, test_loader = li_ion_dataset.get_li_ion_dataloader(batch_size=batch_size)
         trainer = FederatedLearningTrainer(train_loaders, test_loader, use_cuda=use_cuda,
-                                           K=4, E=E, learning_rate=beta, n_global_rounds=n_global_rounds,
+                                           K=4, E=E, sigma=sigma, learning_rate=beta, n_global_rounds=n_global_rounds,
                                            model=NeuralNet, model_parameters={'input_size': 5, 'hidden_size': 4, 'num_classes': 1},
                                            criterion=F.mse_loss,
                                            is_classification=False)
@@ -52,7 +56,8 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     results = []
 
-    sigma_ranges = [0.2, 1.0, 2.0, 5.0, 10.0]
+    # sigma_ranges = [0.2, 1.0, 2.0, 5.0, 10.0]
+    sigma_ranges = [0.2, 0.5, 1.0, 2.0, 3.0, 4.0, 5.0]
     # Es = [1, 2, 5, 10, 15, 20]
     Es = [10]
     betas = [0.0001]
@@ -62,8 +67,8 @@ if __name__ == '__main__':
         for E in Es:
             for beta in betas:
                 result_dict = experiment(sigma=sigma, E=E, beta=beta,
-                                         use_cuda=True,
-                                         n_global_rounds=30, n_experiments=1)
+                                         batch_size=1024,
+                                         n_global_rounds=30, n_experiments=1, random_seed=2024)
                 results.append(result_dict)
 
     save_result(results)

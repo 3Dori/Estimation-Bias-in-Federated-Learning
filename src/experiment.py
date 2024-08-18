@@ -13,11 +13,11 @@ def experiment(K=10, is_iid=False, gamma=0.1, sigma=1.0, beta=0.1, batch_size=No
                model_name='LogisticRegression', use_cuda=False, n_experiments=10, random_seed=None):
     result_dict = {'K': K, 'is_iid': is_iid, 'gamma': gamma, 'sigma': sigma, 'beta': beta, 'batch_size': batch_size, 'model_name': model_name, 'E': E, 'test_loss': [], 'accuracy': []}
     print(f'Running experiment for K = {K}, is_iid = {is_iid}, gamma = {gamma}, sigma = {sigma}, beta = {beta}, E = {E}, model_name = {model_name}')
+    if random_seed:
+        np.random.seed(random_seed)
+        torch.random.manual_seed(random_seed)
     for n in range(n_experiments):
         print(f'Experiment {n}')
-        if random_seed:
-            np.random.seed(random_seed)
-            torch.random.manual_seed(random_seed)
 
         train_loaders, test_loader = \
             get_MNIST_dataloader(K=K, is_iid=is_iid, gamma=gamma,
