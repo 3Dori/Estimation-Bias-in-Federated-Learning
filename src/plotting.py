@@ -74,21 +74,32 @@ def merge_experiment_results_in_folder(files=None, root='../results/'):
     return results
 
 
+
+def _get_mean(results, key='accuracy'):
+    return np.array([row for row in results[key] if len(row) > 1]).mean(axis=0)
+
+
+def _is_result_match(result, fixed_param):
+    return all(isclose(result[key], value, abs_tol=0.001) for key, value in fixed_param.items())
+
+
+def _gen_fixed_param_str(fixed_param):
+    return ','.join(f'\\{key}={value}' if key not in ['E'] else f'{key}={value}'
+                    for key, value in fixed_param.items())
+
+
 def plot_all(results, fixed_param='sigma', variable='gamma', max_epochs=100, inset_axis=True):
     import scienceplots
 
     plt.style.use(['science', 'ieee'])
-
-    def get_mean(results, key='accuracy'):
-        return np.array([row for row in results[key] if len(row) > 1]).mean(axis=0)
 
     zs = {round(result[fixed_param], 2) for result in results}
     for z in zs:
         results_by_z = [result for result in results
                         if isclose(result[fixed_param], z, abs_tol=0.01)]
         variables = np.array([result[variable] for result in results_by_z])
-        losses = [get_mean(result, key='test_loss') for result in results_by_z]
-        # accuracies_for_v = [get_mean(result, key='accuracy') for result in results_by_z]
+        losses = [_get_mean(result, key='test_loss') for result in results_by_z]
+        # accuracies_for_v = [_get_mean(result, key='accuracy') for result in results_by_z]
 
         color = cm.rainbow(np.linspace(0, 1, len(variables)))
         fig, ax = plt.subplots(figsize=[5,4])
@@ -128,20 +139,11 @@ def plot_with_param_fixed(results, fixed_param=None, variable='gamma', max_epoch
     import scienceplots
 
     plt.style.use(['science', 'ieee'])
-
-    def get_mean(results, key='accuracy'):
-        return np.array([row for row in results[key] if len(row) > 1]).mean(axis=0)
     
-    def is_result_match(result, fixed_param):
-        return all(isclose(result[key], value, abs_tol=0.001) for key, value in fixed_param.items())
-    
-    def gen_fixed_param_str(fixed_param):
-        return ','.join(f'\\{key}={value}' for key, value in fixed_param.items())
-
     results_by_z = [result for result in results
-                    if is_result_match(result, fixed_param)]
+                    if _is_result_match(result, fixed_param)]
     variables = np.array([result[variable] for result in results_by_z])
-    losses = [get_mean(result, key='test_loss') for result in results_by_z]
+    losses = [_get_mean(result, key='test_loss') for result in results_by_z]
     # accuracies_for_v = [get_mean(result, key='accuracy') for result in results_by_z]
 
     fig, ax = plt.subplots(figsize=[5,4])
@@ -171,7 +173,45 @@ def plot_with_param_fixed(results, fixed_param=None, variable='gamma', max_epoch
     ax.set_ylabel('Test loss')
     # title = 'IID data' if fixed_param.get('gamma', 0) == 10.0 else f'${gen_fixed_param_str(fixed_param)}$'
     # ax.set_title(title)
-    plt.savefig(f'../figures/li_loss_{gen_fixed_param_str(fixed_param)}.pdf', bbox_inches='tight')
+    plt.savefig(f'../figures/li_loss_{_gen_fixed_param_str(fixed_param)}.pdf', bbox_inches='tight')
+
+
+def plot_with_param_fixed_multivar(results, fixed_param=None, variables=['E', 'beta'], max_epochs=150, inset_axes=True):
+    import scienceplots
+
+    plt.style.use(['science', 'ieee'])
+    
+    results_by_z = [result for result in results
+                    if _is_result_match(result, fixed_param)]
+    variable_values = []
+    for variable in variables:
+        variable_values.append(np.array([result[variable] for result in results_by_z]))
+    losses = [_get_mean(result, key='test_loss') for result in results_by_z]
+    # accuracies_for_v = [get_mean(result, key='accuracy') for result in results_by_z]
+
+    fig, ax = plt.subplots(figsize=[5,4])
+    if inset_axes:
+        axins = ax.inset_axes([0.2, 0.6, 0.5, 0.33])
+        x1, x2, y1, y2 = 140, 150, 0.28, 0.283
+        axins.set_xlim(x1, x2)
+        axins.set_ylim(y1, y2)
+    color = cm.rainbow(np.linspace(0, 1, len(results_by_z)))
+    for i, y in enumerate(losses):
+        if len(y) > max_epochs:
+            y = y[:max_epochs]
+        x = np.arange(1, len(y) + 1)
+        v = {variable: variable_value[i] for variable, variable_value in zip(variables, variable_values)}
+        label = '$' + _gen_fixed_param_str(v) + '$'
+        ax.plot(x, y, '-', label=label, c=color[i], linewidth=0.6)
+        if inset_axes:
+            axins.plot(x, y, '-', label=label, c=color[i], linewidth=0.6)
+    ax.legend()
+    ax.set_xlabel('Communication round')
+    ax.set_ylabel('Test loss')
+    # title = 'IID data' if fixed_param.get('gamma', 0) == 10.0 else f'${gen_fixed_param_str(fixed_param)}$'
+    # ax.set_title(title)
+    plt.savefig(f'../figures/li_loss_{_gen_fixed_param_str(fixed_param)}.pdf', bbox_inches='tight')
+
 
 
 if __name__ == '__main__':
@@ -202,6 +242,11 @@ if __name__ == '__main__':
     # plot_with_param_fixed(results, fixed_param='gamma', variable='sigma')
 
     # Experiment with beta - Li-ion
-    with open('../results_li_ion/results_li_ion_different_betas.pkl', 'rb') as f:
+    # with open('../results_li_ion/results_li_ion_different_betas.pkl', 'rb') as f:
+    #     results = pickle.load(f)
+    # plot_with_param_fixed(results, fixed_param={'E': 10}, variable='beta', inset_axes=False)
+
+    # Experiment with fixed E/beta - Li-ion
+    with open('../results_li_ion/results_li_ion_fixed_E_to_beta.pkl', 'rb') as f:
         results = pickle.load(f)
-    plot_with_param_fixed(results, fixed_param={'E': 10}, variable='beta', inset_axes=False)
+    plot_with_param_fixed_multivar(results, fixed_param={'sigma': 1.0}, inset_axes=False)
