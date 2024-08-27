@@ -61,22 +61,33 @@ if __name__ == '__main__':
     betas = [0.01, 0.02, 0.05, 0.1, 0.2, 0.5]
     # Es = [1, 3, 10, 32, 100, 316, 1000, 3162]
     # Es = [10, 20, 30, 40, 50]
-    n_global_rounds = 30
+    n_global_rounds = 150
     n_experiments = 1
 
-    for gamma in gamma_ranges:
-        for sigma in sigma_ranges:
-            sigma = sqrt(sigma)
-            for E in Es:
-                for beta in betas:
-                    is_iid = gamma is None
-                    gamma = gamma or 10.0
-                    result_dict = experiment(K=10, is_iid=is_iid, gamma=gamma, sigma=sigma, beta=beta, E=E,
-                                             use_cuda=False,
-                                             n_global_rounds=n_global_rounds, n_experiments=n_experiments, random_seed=2024)
-                    results.append(result_dict)
+    # for gamma in gamma_ranges:
+    #     for sigma in sigma_ranges:
+    #         sigma = sqrt(sigma)
+    #         for E in Es:
+    #             for beta in betas:
+    #                 is_iid = gamma is None
+    #                 gamma = gamma or 10.0
+    #                 result_dict = experiment(K=10, is_iid=is_iid, gamma=gamma, sigma=sigma, beta=beta, E=E,
+    #                                          use_cuda=False,
+    #                                          n_global_rounds=n_global_rounds, n_experiments=n_experiments, random_seed=2024)
+    #                 results.append(result_dict)
     # for sigma in sigma_ranges:
     #     result_dict = experiment(K=10, is_iid=True, gamma=1.0, sigma=sigma, use_cuda=False, n_global_rounds=100, n_experiments=20)
     #     results.append(result_dict)
+
+    sigma = 1.0
+    gamma = 1.0
+    is_iid = False
+    Es = [1, 2, 5, 10, 15, 20]
+    betas = [0.01, 0.02, 0.05, 0.1, 0.15, 0.2]
+    for E, beta in zip(Es, betas):
+        result_dict = experiment(K=10, is_iid=is_iid, gamma=gamma, sigma=sigma, beta=beta, E=E,
+                                 use_cuda=False,
+                                 n_global_rounds=n_global_rounds, n_experiments=n_experiments, random_seed=2024)
+        results.append(result_dict)
 
     save_result(results)

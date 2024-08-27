@@ -57,10 +57,10 @@ if __name__ == '__main__':
     results = []
 
     # sigma_ranges = [0.2, 1.0, 2.0, 5.0, 10.0]
-    sigma_ranges = [0.2, 0.5, 1.0, 2.0, 3.0, 4.0, 5.0]
+    sigma_ranges = [0.2, 0.5, 0.8, 1.0, 2.0, 3.0, 4.0, 5.0]
     # Es = [1, 2, 5, 10, 15, 20]
     Es = [10]
-    betas = [0.0001]
+    betas = [0.001]
 
     for sigma in sigma_ranges:
         sigma = sqrt(sigma)

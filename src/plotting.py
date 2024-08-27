@@ -196,7 +196,12 @@ if __name__ == '__main__':
     # plot_with_param_fixed(results, fixed_param={'gamma': 1.0, 'sigma': 1.0, 'E': 10}, variable='beta')
 
     # Experiment with E - Li-ion
-    with open('../results_li_ion/results_li_ion_240818143159.pkl', 'rb') as f:
-        results = pickle.load(f)
-    plot_with_param_fixed(results, fixed_param={'E': 10}, variable='sigma', inset_axes=False)
+    # with open('../results_li_ion/results_different_sigmas.pkl', 'rb') as f:
+    #     results = pickle.load(f)
+    # plot_with_param_fixed(results, fixed_param={'E': 10}, variable='sigma', inset_axes=False)
     # plot_with_param_fixed(results, fixed_param='gamma', variable='sigma')
+
+    # Experiment with beta - Li-ion
+    with open('../results_li_ion/results_li_ion_different_betas.pkl', 'rb') as f:
+        results = pickle.load(f)
+    plot_with_param_fixed(results, fixed_param={'E': 10}, variable='beta', inset_axes=False)
